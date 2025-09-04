@@ -1,0 +1,63 @@
+# ── Python ───────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+.Python
+build/
+dist/
+
+# ── Virtual envs ─────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ── Editor / OS ──────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Notebooks ────────────────────────────────────────────────────
+.ipynb_checkpoints/
+
+# ── Data (raw + processed, kept out of git) ──────────────────────
+data/raw/
+data/processed/
+data/external/
+!data/**/.gitkeep
+
+# ── Model artifacts ──────────────────────────────────────────────
+models/
+samples/*.png
+samples/*.jpg
+!samples/.gitkeep
+*.pt
+*.pth
+*.onnx
+*.pdmodel
+*.pdparams
+
+# ── Reports / images (outputs, regenerated) ─────────────────────
+reports/*.json
+reports/*.csv
+images/*.png
+images/*.jpg
+
+# ── Logs ─────────────────────────────────────────────────────────
+*.log
+
+# ── Test / coverage ──────────────────────────────────────────────
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ── Secrets ──────────────────────────────────────────────────────
+.env
+.env.*

@@ -1,0 +1,28 @@
+# ── Document analysis engine ─────────────────────────────────────
+# PP-StructureV3 (PaddleOCR 3.x) — layout segmentation + table structure.
+# paddleocr auto-installs paddlex[ocr-core] as a version-locked dependency;
+# do NOT install paddlex separately (causes version conflicts).
+# Requires Python <=3.11 on Windows (paddlepaddle does not yet ship 3.12 wheels).
+paddlepaddle>=3.1.0,<4.0.0
+paddleocr>=3.0.0,<4.0.0
+
+# ── Evaluation (COCO mAP) ────────────────────────────────────────
+# pycocotools-windows is a prebuilt wheel that avoids MSVC build requirements.
+# On Linux/macOS this package is a thin alias for pycocotools.
+pycocotools-windows>=2.0.2
+
+# ── Image handling ───────────────────────────────────────────────
+Pillow>=10.0.0,<13.0.0
+numpy>=1.24.0,<2.2.0
+
+# ── Dashboard ────────────────────────────────────────────────────
+streamlit>=1.38.0,<2.0.0
+plotly>=5.20.0,<6.0.0
+
+# ── Data download ────────────────────────────────────────────────
+tqdm>=4.66.0,<5.0.0
+
+# ── Dev tooling ──────────────────────────────────────────────────
+ruff>=0.11.0
+pytest>=8.0
+pre-commit>=4.0
