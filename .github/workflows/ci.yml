@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install ruff
+      - run: ruff check scripts/ tests/ dashboard/
+      - run: ruff format --check scripts/ tests/ dashboard/
+
+  test:
+    # paddlepaddle + paddleocr are heavy (~hundreds of MB) and CPU-memory hungry;
+    # we do NOT install them in CI. Tests cover config wiring and the category
+    # mapping logic (pure Python, no paddle). paddle-dependent behavior is
+    # guarded by pytest.importorskip in tests.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
+      - run: pip install pytest
+      - run: pytest tests/ -v --tb=short
