@@ -1,14 +1,15 @@
+<div align="center">
+
 # doclayout · 文档智能版面分析
 
-<p align="center">
-  <b>基于 PP-StructureV3 的文档版面分割 + 表格识别 — 上传文档图像，自动分割结构区域</b>
-</p>
-<p align="center">
-  <img src="https://img.shields.io/badge/python-3.11%2B-blue?logo=python&logoColor=white" alt="Python">
-  <img src="https://img.shields.io/badge/PaddleOCR-3.7-2855d6" alt="PaddleOCR">
-  <img src="https://img.shields.io/badge/PP--StructureV3-layout-green" alt="PP-StructureV3">
-  <img src="https://img.shields.io/badge/code%20style-ruff-000000?logo=ruff&logoColor=white" alt="Ruff">
-</p>
+**基于 PP-StructureV3 的文档版面分割 + 表格识别 — 上传文档图像，自动分割结构区域**
+
+<img src="https://img.shields.io/badge/python-3.11%2B-blue?logo=python&logoColor=white" alt="Python">
+<img src="https://img.shields.io/badge/PaddleOCR-3.7-2855d6" alt="PaddleOCR">
+<img src="https://img.shields.io/badge/PP--StructureV3-layout-green" alt="PP-StructureV3">
+<img src="https://img.shields.io/badge/code%20style-ruff-000000?logo=ruff&logoColor=white" alt="Ruff">
+
+</div>
 
 ---
 

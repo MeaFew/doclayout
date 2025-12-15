@@ -1,8 +1,15 @@
+<div align="center">
+
 # doclayout · Document Intelligence
 
-<p align="center">
-  <b>Document layout segmentation + table recognition with PP-StructureV3</b>
-</p>
+**Document layout segmentation + table recognition with PP-StructureV3**
+
+<img src="https://img.shields.io/badge/python-3.11%2B-blue?logo=python&logoColor=white" alt="Python">
+<img src="https://img.shields.io/badge/PaddleOCR-3.7-2855d6" alt="PaddleOCR">
+<img src="https://img.shields.io/badge/PP--StructureV3-layout-green" alt="PP-StructureV3">
+<img src="https://img.shields.io/badge/code%20style-ruff-000000?logo=ruff&logoColor=white" alt="Ruff">
+
+</div>
 
 ---
 
