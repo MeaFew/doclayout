@@ -41,7 +41,7 @@ make evaluate  # 占位：需手动准备 PubLayNet val 数据 + pycocotools 后
 ```
 
 - **代码风格**：ruff（lint + format），pre-commit hook 已配置。
-- **测试**：`pytest tests/`。CI 不装 paddle（太重），paddle 相关逻辑用 importorskip 保护。
+- **测试**：`pytest tests/`。CI 不装 paddle（太重），测试只覆盖配置接线和纯 Python 的区域→COCO 映射逻辑（刻意不 import paddle，故无需 importorskip）；推理/评估脚本在本地运行。
 
 ## 重要约定
 

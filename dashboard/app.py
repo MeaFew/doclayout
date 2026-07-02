@@ -35,13 +35,11 @@ if str(repo_root / "scripts") not in sys.path:
     sys.path.insert(0, str(repo_root / "scripts"))
 
 import config  # noqa: E402
-from config import METRICS_JSON, SAMPLES_DIR  # noqa: E402
+from config import METRICS_JSON, SAMPLES_DIR, apply_paddle_env  # noqa: E402
 
 # CPU memory guard + oneDNN disable — before any paddle import downstream.
-os.environ.setdefault("FLAGS_fraction_of_cpu_memory_to_use", config.PADDLE_CPU_MEMORY_FRACTION)
-os.environ.setdefault("FLAGS_cpu_threads", config.PADDLE_CPU_THREADS)
-os.environ.setdefault("FLAGS_use_mkldnn", "0")
-os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
+# Single source of truth: config.apply_paddle_env() honors config.ENABLE_MKLDNN.
+apply_paddle_env()
 
 import detect  # noqa: E402
 

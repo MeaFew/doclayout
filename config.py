@@ -104,6 +104,24 @@ PADDLE_CPU_THREADS = "6"
 ENABLE_MKLDNN = False
 
 
+def apply_paddle_env() -> None:
+    """Set PaddlePaddle env vars consistently — call before importing paddle.
+
+    Single source of truth for the env-var ceremony every entrypoint needs
+    (detect.py, dashboard). Previously each entrypoint set these independently
+    with a hardcoded ``"0"`` for ``FLAGS_use_mkldnn``, which silently ignored
+    ``ENABLE_MKLDNN``. Now flipping ``ENABLE_MKLDNN`` here takes effect
+    everywhere. Uses ``os.environ.setdefault`` so explicit user values win.
+    """
+    import os
+
+    os.environ.setdefault("FLAGS_fraction_of_cpu_memory_to_use", PADDLE_CPU_MEMORY_FRACTION)
+    os.environ.setdefault("FLAGS_cpu_threads", PADDLE_CPU_THREADS)
+    # paddle reads FLAGS_use_mkldnn as a string ("0"/"1").
+    os.environ.setdefault("FLAGS_use_mkldnn", "1" if ENABLE_MKLDNN else "0")
+    os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
+
+
 def ensure_dirs() -> None:
     """Create the project's output directories. Call once at startup."""
     for d in (

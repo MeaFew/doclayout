@@ -20,9 +20,9 @@ jobs:
 
   test:
     # paddlepaddle + paddleocr are heavy (~hundreds of MB) and CPU-memory hungry;
-    # we do NOT install them in CI. Tests cover config wiring and the category
-    # mapping logic (pure Python, no paddle). paddle-dependent behavior is
-    # guarded by pytest.importorskip in tests.
+    # we do NOT install them in CI. Tests cover config wiring and the region→COCO
+    # mapping logic (pure Python) and deliberately never import paddle — so no
+    # pytest.importorskip is needed. Inference/eval scripts are exercised locally.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

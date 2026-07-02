@@ -17,7 +17,7 @@
 
 `doclayout` 是一个文档智能系统，对文档图像进行版面分析：自动识别标题、正文、表格、图片、列表等结构区域，并对表格区域进行结构识别（还原为 HTML）。底层使用 **PaddleOCR PP-StructureV3**（2025 最新版），一个 pipeline 同时完成版面分割 + 表格结构识别。
 
-这是作者项目集中的**文档智能方向**项目，与视觉检索（vizseek）、时序预测（foresight）、图反欺诈（graphguard）等互补，覆盖不同的 AI 子领域。
+这是一个**文档智能方向**的项目，聚焦版面分割与表格结构识别。
 
 ## 核心亮点
 
@@ -57,7 +57,7 @@ detect.py 适配层
 | 引擎 | PP-StructureV3 (`paddleocr` 3.7) | 版面分割 + 表格结构一体化 |
 | 后端 | paddlepaddle 3.3 (CPU) | 禁用 oneDNN 规避 PIR bug |
 | 图像 | Pillow | 标注框绘制 + 样本生成 |
-| 评估 | pycocotools + PubLayNet | mAP@[0.50:0.95]（代码就绪，待数据） |
+| 评估 | pycocotools + PubLayNet | mAP@[0.50:0.95]（占位实现，待数据；见"评估状态"） |
 | 交付 | Streamlit | 交互式文档分析看板 |
 
 ## 快速开始

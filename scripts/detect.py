@@ -41,17 +41,14 @@ from config import (  # noqa: E402
     CATEGORY_NAME_TO_ID,
     DEFAULT_DEVICE,
     DETECTIONS_JSON,
-    ENABLE_MKLDNN,
-    PADDLE_CPU_MEMORY_FRACTION,
-    PADDLE_CPU_THREADS,
     PP_TYPE_TO_PUBLAYNET,
+    apply_paddle_env,
     ensure_dirs,
 )
 
 # CPU memory guard + oneDNN disable — MUST precede any paddle import.
-os.environ.setdefault("FLAGS_fraction_of_cpu_memory_to_use", PADDLE_CPU_MEMORY_FRACTION)
-os.environ.setdefault("FLAGS_cpu_threads", PADDLE_CPU_THREADS)
-os.environ.setdefault("FLAGS_use_mkldnn", "0")
+# Single source of truth: config.apply_paddle_env() reads config.ENABLE_MKLDNN.
+apply_paddle_env()
 
 
 def parse_args() -> argparse.Namespace:
@@ -63,11 +60,12 @@ def parse_args() -> argparse.Namespace:
 
 
 def _set_env() -> None:
-    """Ensure paddle env vars are set (idempotent, safe before paddle import)."""
-    os.environ.setdefault("FLAGS_fraction_of_cpu_memory_to_use", PADDLE_CPU_MEMORY_FRACTION)
-    os.environ.setdefault("FLAGS_cpu_threads", PADDLE_CPU_THREADS)
-    os.environ.setdefault("FLAGS_use_mkldnn", "0")
-    os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
+    """Ensure paddle env vars are set (idempotent, safe before paddle import).
+
+    Thin wrapper around the canonical config.apply_paddle_env() so callers that
+    invoke _set_env() explicitly still go through one source of truth.
+    """
+    apply_paddle_env()
 
 
 def load_pipeline(device: str = DEFAULT_DEVICE):
