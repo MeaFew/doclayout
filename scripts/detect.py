@@ -32,12 +32,9 @@ import os
 import sys
 from pathlib import Path
 
-# CPU memory guard + oneDNN disable — MUST precede any paddle import.
-os.environ.setdefault("FLAGS_fraction_of_cpu_memory_to_use", "0.3")
-os.environ.setdefault("FLAGS_cpu_threads", "6")
-os.environ.setdefault("FLAGS_use_mkldnn", "0")
-
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from PIL import Image  # noqa: E402
 
 import config  # noqa: E402
 from config import (  # noqa: E402
@@ -45,9 +42,16 @@ from config import (  # noqa: E402
     DEFAULT_DEVICE,
     DETECTIONS_JSON,
     ENABLE_MKLDNN,
+    PADDLE_CPU_MEMORY_FRACTION,
+    PADDLE_CPU_THREADS,
     PP_TYPE_TO_PUBLAYNET,
     ensure_dirs,
 )
+
+# CPU memory guard + oneDNN disable — MUST precede any paddle import.
+os.environ.setdefault("FLAGS_fraction_of_cpu_memory_to_use", PADDLE_CPU_MEMORY_FRACTION)
+os.environ.setdefault("FLAGS_cpu_threads", PADDLE_CPU_THREADS)
+os.environ.setdefault("FLAGS_use_mkldnn", "0")
 
 
 def parse_args() -> argparse.Namespace:
@@ -60,8 +64,8 @@ def parse_args() -> argparse.Namespace:
 
 def _set_env() -> None:
     """Ensure paddle env vars are set (idempotent, safe before paddle import)."""
-    os.environ.setdefault("FLAGS_fraction_of_cpu_memory_to_use", "0.3")
-    os.environ.setdefault("FLAGS_cpu_threads", "6")
+    os.environ.setdefault("FLAGS_fraction_of_cpu_memory_to_use", PADDLE_CPU_MEMORY_FRACTION)
+    os.environ.setdefault("FLAGS_cpu_threads", PADDLE_CPU_THREADS)
     os.environ.setdefault("FLAGS_use_mkldnn", "0")
     os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
 
@@ -113,23 +117,36 @@ def extract_regions(page) -> list[dict]:
     return out
 
 
-def regions_to_coco(regions: list[dict], image_id: int) -> list[dict]:
+def regions_to_coco(regions: list[dict], image_id: int, image_size: tuple[int, int]) -> list[dict]:
     """Convert normalized regions to COCO results format for mAP evaluation.
 
-    Maps PP labels to PubLayNet category_id (drops unmapped types), and converts
-    bbox from [x1,y1,x2,y2] to COCO's [x,y,w,h].
+    Maps PP labels to PubLayNet category_id (drops unmapped types), converts
+    bbox from [x1,y1,x2,y2] to COCO's [x,y,w,h], and clamps coordinates to the
+    image bounds. Degenerate boxes (zero width/height) are dropped.
     """
+    img_w, img_h = image_size
     out = []
     for r in regions:
         pl_name = PP_TYPE_TO_PUBLAYNET.get(r["label"])
         if pl_name is None:
             continue  # drop non-PubLayNet types (formula/header/footer/...)
         x1, y1, x2, y2 = r["bbox"]
+        # Sort corners (tolerates swapped x1/x2 or y1/y2), then clamp to image bounds.
+        x1, x2 = sorted((int(x1), int(x2)))
+        y1, y2 = sorted((int(y1), int(y2)))
+        x1 = max(0, x1)
+        y1 = max(0, y1)
+        x2 = min(img_w, x2)
+        y2 = min(img_h, y2)
+        w = x2 - x1
+        h = y2 - y1
+        if w <= 0 or h <= 0:
+            continue  # drop degenerate boxes
         out.append(
             {
                 "image_id": image_id,
                 "category_id": CATEGORY_NAME_TO_ID[pl_name],
-                "bbox": [x1, y1, x2 - x1, y2 - y1],  # → [x,y,w,h]
+                "bbox": [x1, y1, w, h],  # → [x,y,w,h]
                 "score": 1.0,  # PP-StructureV3 does not expose per-block confidence
             }
         )
@@ -144,7 +161,7 @@ def main() -> None:
         print("Specify --image <path> or --batch <dir>. See --help.")
         sys.exit(1)
 
-    print("doclayout — detect")
+    print("doclayout - detect")
     print("=" * 60)
     pipeline = load_pipeline(args.device)
     print(f"  device   : {args.device}  (mkldnn={ENABLE_MKLDNN})")
@@ -161,7 +178,7 @@ def main() -> None:
         for r in regions:
             extra = " [table: HTML available]" if r["table_html"] else ""
             print(f"    {r['label']:10s} bbox={r['bbox']}{extra}")
-        print("\n✓ single-image detection done.")
+        print("\nOK: single-image detection done.")
         return
 
     # ── Batch mode → COCO detections.json ──────────────────────
@@ -180,15 +197,17 @@ def main() -> None:
             image_id = int(img_path.stem)
         except ValueError:
             image_id = i + 1
+        with Image.open(img_path) as img:
+            image_size = img.size
         pages = list(pipeline.predict(str(img_path)))
         regions = extract_regions(pages[0]) if pages else []
-        all_dets.extend(regions_to_coco(regions, image_id))
+        all_dets.extend(regions_to_coco(regions, image_id, image_size))
         print(f"    [{i + 1}/{len(images)}] {img_path.name}: {len(regions)} regions")
 
     config.PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
     DETECTIONS_JSON.write_text(json.dumps(all_dets), encoding="utf-8")
     print(f"\n  wrote {len(all_dets)} detections → {DETECTIONS_JSON.name}")
-    print("✓ batch detection done. Next: `python scripts/evaluate.py`")
+    print("OK: batch detection done. Next: `python scripts/evaluate.py`")
 
 
 if __name__ == "__main__":

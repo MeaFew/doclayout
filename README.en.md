@@ -31,9 +31,10 @@ This is the author's **document-intelligence** project, complementing visual ret
 
 ```bash
 pip install -r requirements.txt
-make all          # samples → detect → evaluate → visualize
-make dashboard    # interactive UI
+make all              # samples → detect → visualize
+make dashboard        # interactive UI
 python scripts/detect.py --image samples/sample_paper.png   # single image
+python scripts/evaluate.py --quick   # requires PubLayNet val data (see below)
 ```
 
 ## Why PP-StructureV3?
@@ -44,7 +45,10 @@ python scripts/detect.py --image samples/sample_paper.png   # single image
 
 ## Evaluation Status
 
-mAP quantification requires PubLayNet val data (11K images, COCO format). Acquisition is currently network-limited (IBM DAX unreliable, HF mirrors are parquet + unstable). `evaluate.py` is complete (pycocotools COCOeval); it runs once `val.json` is placed at `data/raw/`.
+mAP quantification requires PubLayNet val data (11K images, COCO format). Acquisition is currently network-limited (IBM DAX unreliable, HF mirrors are parquet + unstable) and `pycocotools` is not installed in the current environment.
+
+- **`evaluate.py` is currently a stub**: it raises `NotImplementedError` with instructions to manually obtain the data and install `pycocotools`.
+- **To run evaluation**: place `val.json` at `data/raw/publaynet_val.json`, images in `data/raw/publaynet_val_images/`, install `pycocotools`, then run `python scripts/evaluate.py --quick`.
 
 ## License
 

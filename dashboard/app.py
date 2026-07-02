@@ -16,17 +16,15 @@ Run:  streamlit run dashboard/app.py   (or `make dashboard`)
 
 from __future__ import annotations
 
+import html
 import io
+import json
 import os
 import sys
+import tempfile
 from pathlib import Path
 
-# CPU memory guard + oneDNN disable — before any paddle import downstream.
-os.environ.setdefault("FLAGS_fraction_of_cpu_memory_to_use", "0.3")
-os.environ.setdefault("FLAGS_cpu_threads", "6")
-os.environ.setdefault("FLAGS_use_mkldnn", "0")
-os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
-
+import pandas as pd
 import streamlit as st
 from PIL import Image, ImageDraw
 
@@ -36,10 +34,16 @@ if str(repo_root) not in sys.path:
 if str(repo_root / "scripts") not in sys.path:
     sys.path.insert(0, str(repo_root / "scripts"))
 
-import detect  # noqa: E402
-
 import config  # noqa: E402
 from config import METRICS_JSON, SAMPLES_DIR  # noqa: E402
+
+# CPU memory guard + oneDNN disable — before any paddle import downstream.
+os.environ.setdefault("FLAGS_fraction_of_cpu_memory_to_use", config.PADDLE_CPU_MEMORY_FRACTION)
+os.environ.setdefault("FLAGS_cpu_threads", config.PADDLE_CPU_THREADS)
+os.environ.setdefault("FLAGS_use_mkldnn", "0")
+os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
+
+import detect  # noqa: E402
 
 st.set_page_config(page_title="doclayout", layout="wide", page_icon="📄")
 st.title("📄 doclayout — document layout analysis")
@@ -65,6 +69,18 @@ def _annotate(img: Image.Image, regions: list[dict]) -> Image.Image:
         draw.rectangle([x1, max(0, y1 - 18), x1 + 8 * len(r["label"]) + 8, y1], fill=color)
         draw.text((x1 + 4, max(0, y1 - 16)), r["label"], fill="white")
     return img
+
+
+def _render_table_html(table_html: str) -> None:
+    """Render table HTML safely: native dataframe if parsable, else escaped code."""
+    try:
+        dfs = pd.read_html(table_html)
+    except Exception:
+        dfs = []
+    if dfs:
+        st.dataframe(dfs[0], use_container_width=True)
+    else:
+        st.code(html.escape(table_html), language="html")
 
 
 def _list_samples() -> list[Path]:
@@ -105,12 +121,16 @@ with tab_analyze:
         if st.button("Run layout analysis", type="primary"):
             pipeline = _load_pipeline()
             with st.spinner("Running PP-StructureV3..."):
-                # PP-StructureV3 accepts a file path or numpy array; use a temp path
-                import tempfile
-
+                # PP-StructureV3 accepts a file path or numpy array; use a temp path.
+                # delete=False is required on Windows because the file must be closed
+                # before PP-StructureV3 reads it; we unlink explicitly afterwards.
                 with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-                    source_img.save(tmp.name)
-                    pages = list(pipeline.predict(tmp.name))
+                    tmp_path = tmp.name
+                    source_img.save(tmp_path)
+                try:
+                    pages = list(pipeline.predict(tmp_path))
+                finally:
+                    os.unlink(tmp_path)
                 regions = detect.extract_regions(pages[0]) if pages else []
             annotated = _annotate(source_img, regions)
             st.image(
@@ -119,8 +139,6 @@ with tab_analyze:
 
             # region detail table
             st.write("**Detected regions:**")
-            import pandas as pd
-
             df = pd.DataFrame(
                 [
                     {
@@ -134,13 +152,13 @@ with tab_analyze:
             )
             st.dataframe(df, use_container_width=True)
 
-            # table HTML rendering
+            # table HTML rendering (safe: no raw HTML injection)
             tables = [r for r in regions if r["table_html"]]
             if tables:
                 st.write(f"**Table structure ({len(tables)} found):**")
                 for i, t in enumerate(tables):
                     with st.expander(f"Table {i + 1}"):
-                        st.markdown(t["table_html"], unsafe_allow_html=True)
+                        _render_table_html(t["table_html"])
     else:
         st.info("Upload an image or pick a sample to begin.")
 
@@ -148,8 +166,6 @@ with tab_analyze:
 with tab_metrics:
     st.subheader("PubLayNet mAP")
     if METRICS_JSON.exists():
-        import json
-
         metrics = json.loads(METRICS_JSON.read_text(encoding="utf-8"))
         st.json(metrics)
     else:

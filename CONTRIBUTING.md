@@ -28,14 +28,16 @@ python scripts/make_samples.py
 
 # PubLayNet val（mAP 评估用）——当前需手动获取
 # 放到 data/raw/publaynet_val.json + data/raw/publaynet_val_images/
+# scripts/download_data.py 为占位实现，会自动失败并提示手动获取。
 ```
 
 ## 开发工作流
 
 ```bash
-make verify   # lint (ruff) + format-check + test + audit
-make all      # samples → detect → evaluate → visualize
+make verify    # lint (ruff) + format-check + test + audit
+make all       # samples → detect → visualize
 make dashboard # 启动看板
+make evaluate  # 占位：需手动准备 PubLayNet val 数据 + pycocotools 后才可运行
 ```
 
 - **代码风格**：ruff（lint + format），pre-commit hook 已配置。

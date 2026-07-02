@@ -4,7 +4,9 @@
 PYTHON := python
 
 # ── Pipeline ─────────────────────────────────────────────────────
-all: samples detect evaluate visualize
+# evaluate is excluded from `all` because it requires PubLayNet val data
+# + pycocotools and currently raises NotImplementedError.
+all: samples detect visualize
 
 samples:
 	$(PYTHON) scripts/make_samples.py
@@ -13,7 +15,7 @@ download:
 	$(PYTHON) scripts/download_data.py
 
 detect:
-	$(PYTHON) scripts/detect.py
+	$(PYTHON) scripts/detect.py --batch samples
 
 evaluate:
 	$(PYTHON) scripts/evaluate.py

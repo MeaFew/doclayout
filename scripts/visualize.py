@@ -77,7 +77,7 @@ def main() -> None:
         print("        run `python scripts/make_samples.py` first.")
         sys.exit(1)
 
-    print("doclayout — visualize")
+    print("doclayout - visualize")
     print("=" * 60)
     pipeline = detect.load_pipeline()
 
@@ -92,7 +92,7 @@ def main() -> None:
         summary = ", ".join(f"{k}:{v}" for k, v in sorted(label_counts.items()))
         print(f"  {img_path.name}: {len(regions)} regions ({summary}) → {out_path.name}")
 
-    print(f"\n✓ visualizations in {IMAGES_DIR}")
+    print(f"\nOK: visualizations in {IMAGES_DIR}")
 
 
 if __name__ == "__main__":

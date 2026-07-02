@@ -41,22 +41,19 @@ def main() -> None:
     args = parse_args()
     ensure_dirs()
 
-    print("doclayout — data download")
+    print("doclayout - data download")
     print("=" * 60)
     print(f"  quick mode  : {args.quick}")
     print(f"  raw dir     : {RAW_DATA_DIR}")
     print(f"  val json    : {PUBLAYNET_VAL_JSON}")
     print(f"  val images  : {PUBLAYNET_VAL_IMAGES_DIR}")
 
-    # ── Stage B implementation ──────────────────────────────────
-    # TODO(stage-b): fetch PubLayNet val.json + images.
-    #   1. try HF datasets (jordanparker6/publaynet) → reconstruct COCO json
-    #   2. fallback: instruct user to download from OpenDataLab/Kaggle
-    #   3. write val.json + extract val images
-    #   4. copy/extract a few sample docs into samples/
-    print("\n[stub] download_data is a skeleton in stage A.")
-    print("      Run stage B to implement the real download.")
-    sys.exit(0)
+    raise NotImplementedError(
+        "PubLayNet val data download is not yet implemented: "
+        "IBM DAX hosting is unreliable and HuggingFace mirrors are parquet-only. "
+        "Obtain val.json + images manually and place them in "
+        f"{PUBLAYNET_VAL_JSON} + {PUBLAYNET_VAL_IMAGES_DIR}/."
+    )
 
 
 if __name__ == "__main__":

@@ -55,28 +55,18 @@ def main() -> None:
     args = parse_args()
     ensure_dirs()
 
-    print("doclayout — evaluate mAP")
+    print("doclayout - evaluate mAP")
     print("=" * 60)
     print(f"  quick mode  : {args.quick}")
     print(f"  subset size : {EVAL_SUBSET_SIZE}")
     print(f"  out metrics : {METRICS_JSON}")
 
-    if not PUBLAYNET_VAL_JSON.exists():
-        print("\n[abort] No PubLayNet val.json — run download_data.py first.")
-        sys.exit(0)
-    if not DETECTIONS_JSON.exists():
-        print("\n[abort] No detections — run detect.py first.")
-        sys.exit(0)
-
-    # ── Stage D implementation ──────────────────────────────────
-    # TODO(stage-d):
-    #   1. build subset GT (500 images) with fixed seed → val_subset.json
-    #   2. load GT + DT, filter DT to the same image_ids
-    #   3. COCOeval(coco_gt, coco_dt, "bbox").evaluate().accumulate().summarize()
-    #   4. take stats[0] (mAP@0.50:0.95), stats[1] (mAP@0.50)
-    #   5. per-class AP loop, write metrics.json + per_class_ap.csv
-    print("\n[stub] evaluate body is a skeleton in stage A.")
-    sys.exit(0)
+    raise NotImplementedError(
+        "PubLayNet mAP evaluation is not yet available: "
+        "pycocotools is not installed and the PubLayNet val dataset "
+        f"({PUBLAYNET_VAL_JSON}) is not bundled. "
+        "Place val.json + images in data/raw/ and install pycocotools, then rerun."
+    )
 
 
 if __name__ == "__main__":

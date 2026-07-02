@@ -22,8 +22,42 @@ from config import SAMPLES_DIR, ensure_dirs  # noqa: E402
 
 W, H = 1000, 1300
 MARGIN = 60
-FONT_REGULAR = "C:/Windows/Fonts/arial.ttf"
-FONT_BOLD = "C:/Windows/Fonts/arialbd.ttf"
+
+_FONT_CANDIDATES = {
+    "regular": [
+        "C:/Windows/Fonts/arial.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/System/Library/Fonts/Helvetica.ttc",
+        "/System/Library/Fonts/Supplemental/Arial.ttf",
+        "/Library/Fonts/Arial.ttf",
+    ],
+    "bold": [
+        "C:/Windows/Fonts/arialbd.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        "/System/Library/Fonts/Helvetica.ttc",
+        "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+        "/Library/Fonts/Arial Bold.ttf",
+    ],
+}
+
+
+def _find_font(bold: bool) -> str:
+    """Return the first existing font from the cross-platform candidate list."""
+    kind = "bold" if bold else "regular"
+    for path in _FONT_CANDIDATES[kind]:
+        if Path(path).exists():
+            return path
+    raise FileNotFoundError(
+        f"doclayout: no suitable {kind} font found. "
+        "Install DejaVu/Liberation/Helvetica/Arial fonts, "
+        "or set FONT_REGULAR / FONT_BOLD environment variables."
+    )
+
+
+FONT_REGULAR = _find_font(bold=False)
+FONT_BOLD = _find_font(bold=True)
 
 
 def _font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
@@ -272,7 +306,7 @@ def main() -> None:
         img = fn()
         img.save(SAMPLES_DIR / name)
         print(f"  wrote {name} ({img.size[0]}x{img.size[1]})")
-    print(f"\n✓ {len(samples)} sample documents in {SAMPLES_DIR}")
+    print(f"\nOK: {len(samples)} sample documents in {SAMPLES_DIR}")
 
 
 if __name__ == "__main__":

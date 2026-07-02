@@ -1,13 +1,17 @@
 """Windows-compatible one-shot pipeline runner for doclayout.
 
-Replaces `make all` on systems without GNU Make. Pipeline:
-download → detect → evaluate → visualize.
+Replaces `make all` on systems without GNU Make. Runnable pipeline:
+samples → detect → visualize.
+
+NOTE: download_data.py and evaluate.py are currently blocked by missing
+PubLayNet val data and pycocotools; they raise NotImplementedError if run
+directly. See README.md / CONTRIBUTING.md for manual setup instructions.
 
 Each step runs as an explicit argv list (no shell=True) to avoid shell
 injection and Windows quoting pitfalls. Halts on the first nonzero exit.
 
 Usage:
-    python run_all.py              # full pipeline
+    python run_all.py              # full runnable pipeline
     python run_all.py --quick      # subset (500 images) smoke run
     python run_all.py --from detect  # resume from a step
 """
@@ -22,10 +26,11 @@ from pathlib import Path
 os.environ.setdefault("PYTHONUTF8", "1")
 
 # Pipeline stages, in order. Keep in sync with the Makefile `all` target.
+# download_data.py / evaluate.py are excluded because they require manual
+# PubLayNet data + pycocotools and currently raise NotImplementedError.
 STEPS = [
-    ("Download data", ["python", "scripts/download_data.py"]),
-    ("Detect layouts", ["python", "scripts/detect.py"]),
-    ("Evaluate mAP", ["python", "scripts/evaluate.py"]),
+    ("Generate samples", ["python", "scripts/make_samples.py"]),
+    ("Detect layouts", ["python", "scripts/detect.py", "--batch", "samples"]),
     ("Visualize", ["python", "scripts/visualize.py"]),
 ]
 
@@ -35,7 +40,7 @@ def run(cmd: list[str], cwd: Path, *, quick: bool = False) -> bool:
     cmd = list(cmd)
     if quick:
         cmd.append("--quick")
-    print(f"\n{'─' * 60}\n▶ {cmd}\n{'─' * 60}")
+    print(f"\n{'-' * 60}\n> {cmd}\n{'-' * 60}")
     result = subprocess.run(cmd, cwd=cwd)
     return result.returncode == 0
 
@@ -57,7 +62,7 @@ def main() -> None:
     args = parser.parse_args()
 
     here = Path(__file__).resolve().parent
-    print("doclayout — document layout analysis")
+    print("doclayout - document layout analysis")
     print("=" * 60)
 
     started = args.start_at is None
@@ -72,7 +77,7 @@ def main() -> None:
             print(f"\nPipeline stopped at step: {name}")
             sys.exit(1)
 
-    print("\n✓ Pipeline complete. Run `make dashboard` to launch the UI.")
+    print("\nOK: Pipeline complete. Run `make dashboard` to launch the UI.")
 
 
 if __name__ == "__main__":
