@@ -41,6 +41,7 @@ from config import (  # noqa: E402
     CATEGORY_NAME_TO_ID,
     DEFAULT_DEVICE,
     DETECTIONS_JSON,
+    ENABLE_MKLDNN,
     PP_TYPE_TO_PUBLAYNET,
     apply_paddle_env,
     ensure_dirs,
