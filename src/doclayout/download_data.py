@@ -21,14 +21,15 @@ import argparse
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from config import (  # noqa: E402
+from doclayout.config import (  # noqa: E402
     PUBLAYNET_VAL_IMAGES_DIR,
     PUBLAYNET_VAL_JSON,
     RAW_DATA_DIR,
     ensure_dirs,
 )
+from doclayout.logging_setup import get_logger, setup_logging
+
+logger = get_logger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
@@ -41,12 +42,12 @@ def main() -> None:
     args = parse_args()
     ensure_dirs()
 
-    print("doclayout - data download")
-    print("=" * 60)
-    print(f"  quick mode  : {args.quick}")
-    print(f"  raw dir     : {RAW_DATA_DIR}")
-    print(f"  val json    : {PUBLAYNET_VAL_JSON}")
-    print(f"  val images  : {PUBLAYNET_VAL_IMAGES_DIR}")
+    logger.info("doclayout - data download")
+    logger.info("=" * 60)
+    logger.info(f"  quick mode  : {args.quick}")
+    logger.info(f"  raw dir     : {RAW_DATA_DIR}")
+    logger.info(f"  val json    : {PUBLAYNET_VAL_JSON}")
+    logger.info(f"  val images  : {PUBLAYNET_VAL_IMAGES_DIR}")
 
     raise NotImplementedError(
         "PubLayNet val data download is not yet implemented: "
@@ -57,4 +58,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

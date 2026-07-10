@@ -4,12 +4,7 @@ These run in CI without paddle/pycocotools — they validate the config wiring
 and the PP-StructureV3 → PubLayNet category mapping that detect.py relies on.
 """
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-import config  # noqa: E402
+import doclayout.config as config
 
 
 def test_base_dir_is_this_repo():

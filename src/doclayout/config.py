@@ -1,15 +1,15 @@
 """Centralized configuration for doclayout — document layout analysis.
 
 All paths, category mappings, and evaluation parameters live here so scripts
-never hardcode them. Import from config in any script:
+never hardcode them. Import from the package:
 
-    from config import RAW_IMAGE_DIR, CATEGORY_MAP, RANDOM_STATE
+    from doclayout.config import RAW_IMAGE_DIR, CATEGORY_MAP, RANDOM_STATE
 """
 
 from pathlib import Path
 
-# ── Base directories (resolved relative to this file) ────────────
-BASE_DIR = Path(__file__).resolve().parent
+# ── Base directories (resolved from project root, two parents up) ───
+BASE_DIR = Path(__file__).resolve().parents[2]
 DATA_DIR = BASE_DIR / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
 PROCESSED_DATA_DIR = DATA_DIR / "processed"
@@ -74,11 +74,11 @@ EVAL_SEED = 42
 
 # ── Visualization colors (one per PubLayNet class) ───────────────
 CATEGORY_COLORS = {
-    "text": (31, 119, 180),    # blue
-    "title": (255, 127, 14),   # orange
-    "list": (44, 160, 44),     # green
-    "table": (214, 39, 40),    # red
-    "figure": (148, 103, 189), # purple
+    "text": (31, 119, 180),  # blue
+    "title": (255, 127, 14),  # orange
+    "list": (44, 160, 44),  # green
+    "table": (214, 39, 40),  # red
+    "figure": (148, 103, 189),  # purple
 }
 
 # ── Device ───────────────────────────────────────────────────────

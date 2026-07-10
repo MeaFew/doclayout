@@ -3,13 +3,18 @@
 Verifies that the mAP numbers declared in README.md match the values in
 reports/metrics.json. Run after `make all`.
 
-Usage: python scripts/audit_consistency.py
+Usage: python -m doclayout.audit_consistency
 """
 
 import json
+import logging
 import re
 import sys
 from pathlib import Path
+
+from doclayout.logging_setup import get_logger, setup_logging
+
+logger = get_logger(__name__)
 
 
 def read_readme_metric(readme_path: Path, metric_name: str) -> float | None:
@@ -27,24 +32,24 @@ def read_readme_metric(readme_path: Path, metric_name: str) -> float | None:
 
 def check(condition: bool, msg: str) -> bool:
     if condition:
-        print(f"  PASS: {msg}")
+        logger.info(f"  PASS: {msg}")
     else:
-        print(f"  FAIL: {msg}")
+        logger.info(f"  FAIL: {msg}")
     return condition
 
 
 def main() -> None:
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]
     readme = root / "README.md"
     metrics_json = root / "reports" / "metrics.json"
 
     # No-op during scaffolding (keeps `make verify` green before the pipeline runs).
     if not metrics_json.exists():
-        print("No reports/metrics.json found — run `make all` first.")
-        print("(Skipping README-vs-output audit; nothing to cross-check.)")
+        logger.info("No reports/metrics.json found — run `make all` first.")
+        logger.info("(Skipping README-vs-output audit; nothing to cross-check.)")
         return
     if not readme.exists():
-        print("No README.md found — skipping audit.")
+        logger.info("No README.md found — skipping audit.")
         return
 
     with open(metrics_json, encoding="utf-8") as f:
@@ -62,7 +67,7 @@ def main() -> None:
             continue
         readme_val = read_readme_metric(readme, label)
         if readme_val is None:
-            print(f"  SKIP: {label} not found in README (nothing to verify)")
+            logger.info(f"  SKIP: {label} not found in README (nothing to verify)")
             continue
         ok = check(
             abs(readme_val - actual_val) < 0.005,
@@ -74,12 +79,13 @@ def main() -> None:
             failed += 1
 
     total = passed + failed
-    print(f"\n{'=' * 40}")
-    print(f"Results: {passed}/{total} passed, {failed} failed")
+    logger.info(f"\n{'=' * 40}")
+    logger.info(f"Results: {passed}/{total} passed, {failed} failed")
     if failed > 0:
-        print("ACTION: Update README.md or pipeline to resolve mismatches.")
+        logger.info("ACTION: Update README.md or pipeline to resolve mismatches.")
         sys.exit(1)
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

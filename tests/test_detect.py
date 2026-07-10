@@ -4,13 +4,7 @@ These run in CI without paddle — they validate the bbox normalization and
 COCO-format conversion logic that detect.py relies on.
 """
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-
-import detect  # noqa: E402
+from doclayout import detect
 
 
 def test_regions_to_coco_clamps_and_converts():

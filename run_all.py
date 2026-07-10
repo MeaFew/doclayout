@@ -29,9 +29,9 @@ os.environ.setdefault("PYTHONUTF8", "1")
 # download_data.py / evaluate.py are excluded because they require manual
 # PubLayNet data + pycocotools and currently raise NotImplementedError.
 STEPS = [
-    ("Generate samples", ["python", "scripts/make_samples.py"]),
-    ("Detect layouts", ["python", "scripts/detect.py", "--batch", "samples"]),
-    ("Visualize", ["python", "scripts/visualize.py"]),
+    ("Generate samples", ["python", "-m", "doclayout.make_samples"]),
+    ("Detect layouts", ["python", "-m", "doclayout.detect", "--batch", "samples"]),
+    ("Visualize", ["python", "-m", "doclayout.visualize"]),
 ]
 
 

@@ -16,18 +16,19 @@ import argparse
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-import detect  # noqa: E402  (reuse load_pipeline + extract_regions)
+from doclayout import detect  # reuse load_pipeline + extract_regions
 from PIL import Image, ImageDraw  # noqa: E402
 
-from config import (  # noqa: E402
+from doclayout.config import (  # noqa: E402
     CATEGORY_COLORS,
     IMAGES_DIR,
     PP_TYPE_TO_PUBLAYNET,
     SAMPLES_DIR,
     ensure_dirs,
 )
+from doclayout.logging_setup import get_logger, setup_logging
+
+logger = get_logger(__name__)
 
 # Color for regions PP found that don't map to PubLayNet (chart/formula/header/...).
 UNMAPPED_COLOR = (128, 128, 128)
@@ -73,12 +74,12 @@ def main() -> None:
     images = [p for p in images if not p.name.startswith("_")]
 
     if not images:
-        print(f"[abort] no sample images in {samples_dir}")
-        print("        run `python scripts/make_samples.py` first.")
+        logger.error(f"[abort] no sample images in {samples_dir}")
+        logger.info("        run `python scripts/make_samples.py` first.")
         sys.exit(1)
 
-    print("doclayout - visualize")
-    print("=" * 60)
+    logger.info("doclayout - visualize")
+    logger.info("=" * 60)
     pipeline = detect.load_pipeline()
 
     for img_path in images:
@@ -90,10 +91,11 @@ def main() -> None:
         for r in regions:
             label_counts[r["label"]] = label_counts.get(r["label"], 0) + 1
         summary = ", ".join(f"{k}:{v}" for k, v in sorted(label_counts.items()))
-        print(f"  {img_path.name}: {len(regions)} regions ({summary}) → {out_path.name}")
+        logger.info(f"  {img_path.name}: {len(regions)} regions ({summary}) → {out_path.name}")
 
-    print(f"\nOK: visualizations in {IMAGES_DIR}")
+    logger.info(f"\nOK: visualizations in {IMAGES_DIR}")
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

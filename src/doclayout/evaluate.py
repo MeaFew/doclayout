@@ -30,9 +30,7 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-from config import (  # noqa: E402
+from doclayout.config import (  # noqa: E402
     CATEGORY_ID_TO_NAME,
     DETECTIONS_JSON,
     EVAL_SEED,
@@ -43,6 +41,9 @@ from config import (  # noqa: E402
     PUBLAYNET_VAL_JSON,
     ensure_dirs,
 )
+from doclayout.logging_setup import get_logger, setup_logging
+
+logger = get_logger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
@@ -55,11 +56,11 @@ def main() -> None:
     args = parse_args()
     ensure_dirs()
 
-    print("doclayout - evaluate mAP")
-    print("=" * 60)
-    print(f"  quick mode  : {args.quick}")
-    print(f"  subset size : {EVAL_SUBSET_SIZE}")
-    print(f"  out metrics : {METRICS_JSON}")
+    logger.info("doclayout - evaluate mAP")
+    logger.info("=" * 60)
+    logger.info(f"  quick mode  : {args.quick}")
+    logger.info(f"  subset size : {EVAL_SUBSET_SIZE}")
+    logger.info(f"  out metrics : {METRICS_JSON}")
 
     raise NotImplementedError(
         "PubLayNet mAP evaluation is not yet available: "
@@ -70,4 +71,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

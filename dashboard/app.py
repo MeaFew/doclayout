@@ -20,7 +20,6 @@ import html
 import io
 import json
 import os
-import sys
 import tempfile
 from pathlib import Path
 
@@ -28,20 +27,13 @@ import pandas as pd
 import streamlit as st
 from PIL import Image, ImageDraw
 
-repo_root = Path(__file__).parents[1].resolve()
-if str(repo_root) not in sys.path:
-    sys.path.insert(0, str(repo_root))
-if str(repo_root / "scripts") not in sys.path:
-    sys.path.insert(0, str(repo_root / "scripts"))
-
-import config  # noqa: E402
-from config import METRICS_JSON, SAMPLES_DIR, apply_paddle_env  # noqa: E402
+import doclayout.config as config
+from doclayout import detect
+from doclayout.config import METRICS_JSON, SAMPLES_DIR, apply_paddle_env
 
 # CPU memory guard + oneDNN disable — before any paddle import downstream.
 # Single source of truth: config.apply_paddle_env() honors config.ENABLE_MKLDNN.
 apply_paddle_env()
-
-import detect  # noqa: E402
 
 st.set_page_config(page_title="doclayout", layout="wide", page_icon="📄")
 st.title("📄 doclayout — document layout analysis")

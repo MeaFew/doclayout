@@ -16,9 +16,10 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from doclayout.config import SAMPLES_DIR, ensure_dirs  # noqa: E402
+from doclayout.logging_setup import get_logger, setup_logging
 
-from config import SAMPLES_DIR, ensure_dirs  # noqa: E402
+logger = get_logger(__name__)
 
 W, H = 1000, 1300
 MARGIN = 60
@@ -305,9 +306,10 @@ def main() -> None:
     for name, fn in samples.items():
         img = fn()
         img.save(SAMPLES_DIR / name)
-        print(f"  wrote {name} ({img.size[0]}x{img.size[1]})")
-    print(f"\nOK: {len(samples)} sample documents in {SAMPLES_DIR}")
+        logger.info(f"  wrote {name} ({img.size[0]}x{img.size[1]})")
+    logger.info(f"\nOK: {len(samples)} sample documents in {SAMPLES_DIR}")
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

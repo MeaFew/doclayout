@@ -1,54 +1,59 @@
 .PHONY: all setup samples download detect evaluate visualize dashboard \
-        verify lint format format-check test audit clean
+        verify lint format format-check test typecheck audit clean
 
 PYTHON := python
 
 # ── Pipeline ─────────────────────────────────────────────────────
-# evaluate is excluded from `all` because it requires PubLayNet val data
-# + pycocotools and currently raises NotImplementedError.
 all: samples detect visualize
 
 samples:
-	$(PYTHON) scripts/make_samples.py
+	$(PYTHON) -m doclayout.make_samples
 
 download:
-	$(PYTHON) scripts/download_data.py
+	$(PYTHON) -m doclayout.download_data
 
 detect:
-	$(PYTHON) scripts/detect.py --batch samples
+	$(PYTHON) -m doclayout.detect --batch samples
 
 evaluate:
-	$(PYTHON) scripts/evaluate.py
+	$(PYTHON) -m doclayout.evaluate
 
 visualize:
-	$(PYTHON) scripts/visualize.py
+	$(PYTHON) -m doclayout.visualize
 
 # ── Dashboard ────────────────────────────────────────────────────
 dashboard:
 	streamlit run dashboard/app.py
 
 # ── Setup ────────────────────────────────────────────────────────
+# Note: requirements.txt contains platform-specific deps (paddlepaddle,
+# pycocotools-windows). No cross-platform lock file is generated for this
+# reason. CI installs only dev deps (tests are pure Python, no paddle).
 setup:
 	pip install -r requirements.txt
+	pip install -e ".[dev]"
 	pre-commit install
 
 # ── Quality gates ────────────────────────────────────────────────
 lint:
-	ruff check scripts/ tests/ dashboard/
+	ruff check src/ tests/ dashboard/
 
 format:
-	ruff format scripts/ tests/ dashboard/
+	ruff format src/ tests/ dashboard/
 
 format-check:
-	ruff format --check scripts/ tests/ dashboard/
+	ruff format --check src/ tests/ dashboard/
 
 test:
-	pytest tests/ -v --tb=short
+	pytest tests/ -v --tb=short --cov=doclayout --cov-report=term-missing --cov-fail-under=15
+
+typecheck:
+	mypy src/doclayout
 
 audit:
-	$(PYTHON) scripts/audit_consistency.py
+	$(PYTHON) -m doclayout.audit_consistency
 
-verify: lint format-check test audit
+verify: lint format-check typecheck test audit
 	@echo "All quality gates passed"
 
 # ── Utilities ────────────────────────────────────────────────────

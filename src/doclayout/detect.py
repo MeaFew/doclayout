@@ -32,12 +32,10 @@ import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
 from PIL import Image  # noqa: E402
 
-import config  # noqa: E402
-from config import (  # noqa: E402
+import doclayout.config as config  # noqa: E402
+from doclayout.config import (  # noqa: E402
     CATEGORY_NAME_TO_ID,
     DEFAULT_DEVICE,
     DETECTIONS_JSON,
@@ -46,6 +44,9 @@ from config import (  # noqa: E402
     apply_paddle_env,
     ensure_dirs,
 )
+from doclayout.logging_setup import get_logger, setup_logging
+
+logger = get_logger(__name__)
 
 # CPU memory guard + oneDNN disable — MUST precede any paddle import.
 # Single source of truth: config.apply_paddle_env() reads config.ENABLE_MKLDNN.
@@ -157,36 +158,36 @@ def main() -> None:
     ensure_dirs()
 
     if not args.image and not args.batch:
-        print("Specify --image <path> or --batch <dir>. See --help.")
+        logger.info("Specify --image <path> or --batch <dir>. See --help.")
         sys.exit(1)
 
-    print("doclayout - detect")
-    print("=" * 60)
+    logger.info("doclayout - detect")
+    logger.info("=" * 60)
     pipeline = load_pipeline(args.device)
-    print(f"  device   : {args.device}  (mkldnn={ENABLE_MKLDNN})")
+    logger.info(f"  device   : {args.device}  (mkldnn={ENABLE_MKLDNN})")
 
     if args.image:
         img_path = Path(args.image)
         if not img_path.exists():
-            print(f"[abort] image not found: {img_path}")
+            logger.error(f"[abort] image not found: {img_path}")
             sys.exit(1)
-        print(f"  image    : {img_path}")
+        logger.info(f"  image    : {img_path}")
         pages = list(pipeline.predict(str(img_path)))
         regions = extract_regions(pages[0]) if pages else []
-        print(f"\n  detected {len(regions)} regions:")
+        logger.info(f"\n  detected {len(regions)} regions:")
         for r in regions:
             extra = " [table: HTML available]" if r["table_html"] else ""
-            print(f"    {r['label']:10s} bbox={r['bbox']}{extra}")
-        print("\nOK: single-image detection done.")
+            logger.info(f"    {r['label']:10s} bbox={r['bbox']}{extra}")
+        logger.info("\nOK: single-image detection done.")
         return
 
     # ── Batch mode → COCO detections.json ──────────────────────
     img_dir = Path(args.batch)
     images = sorted([*img_dir.glob("*.png"), *img_dir.glob("*.jpg"), *img_dir.glob("*.jpeg")])
     if not images:
-        print(f"[abort] no images in {img_dir}")
+        logger.error(f"[abort] no images in {img_dir}")
         sys.exit(1)
-    print(f"  batch    : {len(images)} images in {img_dir}")
+    logger.info(f"  batch    : {len(images)} images in {img_dir}")
 
     import json
 
@@ -201,13 +202,14 @@ def main() -> None:
         pages = list(pipeline.predict(str(img_path)))
         regions = extract_regions(pages[0]) if pages else []
         all_dets.extend(regions_to_coco(regions, image_id, image_size))
-        print(f"    [{i + 1}/{len(images)}] {img_path.name}: {len(regions)} regions")
+        logger.info(f"    [{i + 1}/{len(images)}] {img_path.name}: {len(regions)} regions")
 
     config.PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
     DETECTIONS_JSON.write_text(json.dumps(all_dets), encoding="utf-8")
-    print(f"\n  wrote {len(all_dets)} detections → {DETECTIONS_JSON.name}")
-    print("OK: batch detection done. Next: `python scripts/evaluate.py`")
+    logger.info(f"\n  wrote {len(all_dets)} detections → {DETECTIONS_JSON.name}")
+    logger.info("OK: batch detection done. Next: `python scripts/evaluate.py`")
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()
