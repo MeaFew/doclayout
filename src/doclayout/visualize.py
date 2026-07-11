@@ -16,9 +16,9 @@ import argparse
 import sys
 from pathlib import Path
 
-from doclayout import detect  # reuse load_pipeline + extract_regions
 from PIL import Image, ImageDraw  # noqa: E402
 
+from doclayout import detect  # reuse load_pipeline + extract_regions
 from doclayout.config import (  # noqa: E402
     CATEGORY_COLORS,
     IMAGES_DIR,
