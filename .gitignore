@@ -49,6 +49,8 @@ reports/*.json
 reports/*.csv
 images/*.png
 images/*.jpg
+!images/sample_paper_layout.png
+!images/sample_invoice_layout.png
 
 # ── Logs ─────────────────────────────────────────────────────────
 *.log
