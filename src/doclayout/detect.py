@@ -117,16 +117,74 @@ def extract_regions(page) -> list[dict]:
     return out
 
 
-def regions_to_coco(regions: list[dict], image_id: int, image_size: tuple[int, int]) -> list[dict]:
+def compute_detection_score(
+    bbox_xyxy: list[int], image_size: tuple[int, int], rank: int = 0, total: int = 1
+) -> float:
+    """Compute a heuristic confidence score for a detection.
+
+    PP-StructureV3 does not expose per-block confidence scores, so we derive a
+    proxy score from two signals:
+      1. Area ratio — larger boxes relative to the image are more likely to be
+         correct detections (score component in [0.3, 0.85]).
+      2. Rank decay — earlier detections in the pipeline output tend to be more
+         prominent; a mild linear decay penalizes later boxes (factor in [0.85, 1.0]).
+
+    The final score is clamped to [0.1, 0.99] to keep precision-recall curves
+    meaningful for mAP computation.
+
+    Parameters
+    ----------
+    bbox_xyxy : [x1, y1, x2, y2] in pixels (already sorted/clamped).
+    image_size : (width, height) of the source image.
+    rank : 0-based position of this detection in the output list.
+    total : total number of detections for this image.
+
+    Returns
+    -------
+    float in [0.1, 0.99].
+    """
+    img_w, img_h = image_size
+    img_area = max(img_w * img_h, 1)
+
+    x1, y1, x2, y2 = bbox_xyxy
+    box_area = max((x2 - x1) * (y2 - y1), 0)
+    area_ratio = box_area / img_area  # in [0, 1]
+
+    # Area component: sqrt to compress range, then scale to [0.3, 0.85]
+    area_score = 0.3 + 0.55 * min(area_ratio**0.5, 1.0)
+
+    # Rank decay: first detection gets 1.0, last gets 0.85
+    if total > 1:
+        rank_factor = 1.0 - 0.15 * (rank / (total - 1))
+    else:
+        rank_factor = 1.0
+
+    score = area_score * rank_factor
+    return float(max(0.1, min(0.99, score)))
+
+
+def regions_to_coco(
+    regions: list[dict],
+    image_id: int,
+    image_size: tuple[int, int],
+    scores: list[float] | None = None,
+) -> list[dict]:
     """Convert normalized regions to COCO results format for mAP evaluation.
 
     Maps PP labels to PubLayNet category_id (drops unmapped types), converts
     bbox from [x1,y1,x2,y2] to COCO's [x,y,w,h], and clamps coordinates to the
     image bounds. Degenerate boxes (zero width/height) are dropped.
+
+    Parameters
+    ----------
+    scores : optional pre-computed confidence scores (one per input region).
+        If None, a heuristic area+rank based score is computed automatically.
     """
     img_w, img_h = image_size
     out = []
-    for r in regions:
+    # First pass: collect valid entries to know total count for rank scoring
+    valid_entries: list[tuple[dict, list[int], int]] = []  # (region, clamped_bbox, orig_idx)
+    for idx, r in enumerate(regions):
         pl_name = PP_TYPE_TO_PUBLAYNET.get(r["label"])
         if pl_name is None:
             continue  # drop non-PubLayNet types (formula/header/footer/...)
@@ -142,12 +200,27 @@ def regions_to_coco(regions: list[dict], image_id: int, image_size: tuple[int, i
         h = y2 - y1
         if w <= 0 or h <= 0:
             continue  # drop degenerate boxes
+        valid_entries.append((r, [x1, y1, x2, y2], idx))
+
+    total = len(valid_entries)
+    for rank, (r, clamped_bbox, orig_idx) in enumerate(valid_entries):
+        pl_name = PP_TYPE_TO_PUBLAYNET[r["label"]]
+        x1, y1, x2, y2 = clamped_bbox
+        w = x2 - x1
+        h = y2 - y1
+
+        # Use provided score or compute heuristic
+        if scores is not None and orig_idx < len(scores):
+            score = float(max(0.01, min(1.0, scores[orig_idx])))
+        else:
+            score = compute_detection_score(clamped_bbox, image_size, rank=rank, total=total)
+
         out.append(
             {
                 "image_id": image_id,
                 "category_id": CATEGORY_NAME_TO_ID[pl_name],
                 "bbox": [x1, y1, w, h],  # → [x,y,w,h]
-                "score": 1.0,  # PP-StructureV3 does not expose per-block confidence
+                "score": round(score, 6),
             }
         )
     return out

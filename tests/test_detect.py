@@ -34,3 +34,51 @@ def test_regions_to_coco_drops_degenerate_and_unmapped():
     ]
     dets = detect.regions_to_coco(regions, image_id=1, image_size=(100, 100))
     assert dets == []
+
+
+def test_regions_to_coco_scores_not_hardcoded():
+    """Scores must NOT be hardcoded to 1.0 — they should vary by area/rank."""
+    regions = [
+        {"label": "text", "bbox": [0, 0, 90, 90]},  # large box
+        {"label": "title", "bbox": [10, 10, 20, 15]},  # small box
+    ]
+    dets = detect.regions_to_coco(regions, image_id=1, image_size=(100, 100))
+    assert len(dets) == 2
+    # Scores should be in valid range and NOT all 1.0
+    for d in dets:
+        assert 0.1 <= d["score"] <= 0.99
+    # Larger box should have higher score than smaller box
+    assert dets[0]["score"] > dets[1]["score"]
+
+
+def test_regions_to_coco_with_explicit_scores():
+    """When explicit scores are provided, they should be used directly."""
+    regions = [
+        {"label": "text", "bbox": [10, 10, 50, 50]},
+        {"label": "table", "bbox": [60, 60, 90, 90]},
+    ]
+    scores = [0.95, 0.72]
+    dets = detect.regions_to_coco(regions, image_id=1, image_size=(100, 100), scores=scores)
+    assert len(dets) == 2
+    assert dets[0]["score"] == 0.95
+    assert dets[1]["score"] == 0.72
+
+
+def test_compute_detection_score_range():
+    """Heuristic score must be in [0.1, 0.99]."""
+    # Very small box in large image
+    score = detect.compute_detection_score([0, 0, 1, 1], (1000, 1000), rank=0, total=1)
+    assert 0.1 <= score <= 0.99
+    # Very large box
+    score = detect.compute_detection_score([0, 0, 999, 999], (1000, 1000), rank=0, total=1)
+    assert 0.1 <= score <= 0.99
+    assert score > 0.8  # large box should score high
+
+
+def test_compute_detection_score_rank_decay():
+    """Later detections should have lower scores (rank decay)."""
+    bbox = [10, 10, 50, 50]
+    img_size = (100, 100)
+    score_first = detect.compute_detection_score(bbox, img_size, rank=0, total=5)
+    score_last = detect.compute_detection_score(bbox, img_size, rank=4, total=5)
+    assert score_first > score_last

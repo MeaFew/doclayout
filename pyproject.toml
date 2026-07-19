@@ -52,8 +52,8 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "raise NotImplementedError",
 ]
-# CI deliberately skips paddle/pycocotools; tests cover config + detect math.
-fail_under = 15
+# CI deliberately skips paddle; tests cover config + detect + evaluate math.
+fail_under = 60
 
 [tool.mypy]
 python_version = "3.11"
