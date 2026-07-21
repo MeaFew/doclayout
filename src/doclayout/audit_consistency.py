@@ -21,9 +21,12 @@ def read_readme_metric(readme_path: Path, metric_name: str) -> float | None:
     """Extract a numeric metric from README.md.
 
     Matches patterns like `mAP@0.5 = 0.123` or `mAP@0.50:0.95 0.123`.
+    The `(?!:?\\d)` lookahead prevents a short name from prefix-matching a
+    longer one: `mAP@0.50` must not capture the `0.95` of a `mAP@0.50:0.95`
+    line that happens to appear first.
     """
     text = readme_path.read_text(encoding="utf-8")
-    pattern = rf"{re.escape(metric_name)}[^\d]*?(\d+\.\d+)"
+    pattern = rf"{re.escape(metric_name)}(?!:?\d)[^\d]*?(\d+\.\d+)"
     match = re.search(pattern, text)
     if match:
         return float(match.group(1))

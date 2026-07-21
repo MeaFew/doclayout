@@ -24,11 +24,11 @@ pip install "paddlex[ocr]==$(python -c 'import paddlex; print(paddlex.__version_
 
 ```bash
 # 生成合成样本文档（含真实渲染文字，用于 dashboard 演示）
-python scripts/make_samples.py
+python -m doclayout.make_samples
 
 # PubLayNet val（mAP 评估用）——当前需手动获取
 # 放到 data/raw/publaynet_val.json + data/raw/publaynet_val_images/
-# scripts/download_data.py 为占位实现，会自动失败并提示手动获取。
+# download_data.py 为占位实现，会自动失败并提示手动获取。
 ```
 
 ## 开发工作流
@@ -37,7 +37,7 @@ python scripts/make_samples.py
 make verify    # lint (ruff) + format-check + test + audit
 make all       # samples → detect → visualize
 make dashboard # 启动看板
-make evaluate  # 占位：需手动准备 PubLayNet val 数据 + pycocotools 后才可运行
+make evaluate  # 需先手动准备 PubLayNet val 数据（见上文"数据准备"）
 ```
 
 - **代码风格**：ruff（lint + format），pre-commit hook 已配置。

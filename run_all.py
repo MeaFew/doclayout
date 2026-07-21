@@ -3,17 +3,19 @@
 Replaces `make all` on systems without GNU Make. Runnable pipeline:
 samples → detect → visualize.
 
-NOTE: download_data.py and evaluate.py are currently blocked by missing
-PubLayNet val data and pycocotools; they raise NotImplementedError if run
-directly. See README.md / CONTRIBUTING.md for manual setup instructions.
+NOTE: download_data.py is a stub (raises NotImplementedError) and evaluate.py
+requires PubLayNet val data placed manually at config.PUBLAYNET_VAL_JSON —
+until then it exits with a clear "data not found" message. Both are therefore
+excluded from the runnable pipeline. See README.md / CONTRIBUTING.md for
+manual setup instructions.
 
 Each step runs as an explicit argv list (no shell=True) to avoid shell
 injection and Windows quoting pitfalls. Halts on the first nonzero exit.
 
 Usage:
     python run_all.py              # full runnable pipeline
-    python run_all.py --quick      # subset (500 images) smoke run
-    python run_all.py --from detect  # resume from a step
+    python run_all.py --quick      # smoke run (supporting steps use 1 image)
+    python run_all.py --from "Detect layouts"  # resume from a step
 """
 
 import argparse
@@ -26,12 +28,15 @@ from pathlib import Path
 os.environ.setdefault("PYTHONUTF8", "1")
 
 # Pipeline stages, in order. Keep in sync with the Makefile `all` target.
-# download_data.py / evaluate.py are excluded because they require manual
-# PubLayNet data + pycocotools and currently raise NotImplementedError.
+# download_data.py / evaluate.py are excluded: download_data.py is a stub and
+# evaluate.py needs PubLayNet val data placed manually (it exits with a clear
+# message until then).
+# The third element marks whether the step's CLI accepts --quick; the flag is
+# only forwarded to steps that do (argparse exits with code 2 otherwise).
 STEPS = [
-    ("Generate samples", ["python", "-m", "doclayout.make_samples"]),
-    ("Detect layouts", ["python", "-m", "doclayout.detect", "--batch", "samples"]),
-    ("Visualize", ["python", "-m", "doclayout.visualize"]),
+    ("Generate samples", ["python", "-m", "doclayout.make_samples"], False),
+    ("Detect layouts", ["python", "-m", "doclayout.detect", "--batch", "samples"], True),
+    ("Visualize", ["python", "-m", "doclayout.visualize"], True),
 ]
 
 
@@ -50,7 +55,7 @@ def main() -> None:
     parser.add_argument(
         "--quick",
         action="store_true",
-        help="Use the 500-image subset for a fast end-to-end smoke run.",
+        help="Smoke run: steps that support it process only their first image.",
     )
     parser.add_argument(
         "--from",
@@ -66,14 +71,14 @@ def main() -> None:
     print("=" * 60)
 
     started = args.start_at is None
-    for name, cmd in STEPS:
+    for name, cmd, supports_quick in STEPS:
         if not started:
             if name == args.start_at:
                 started = True
             else:
                 print(f"(skip) {name}")
                 continue
-        if not run(cmd, cwd=here, quick=args.quick):
+        if not run(cmd, cwd=here, quick=args.quick and supports_quick):
             print(f"\nPipeline stopped at step: {name}")
             sys.exit(1)
 

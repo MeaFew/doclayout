@@ -18,8 +18,8 @@ Protocol (verified against PubLayNet paper arXiv:1908.07836 + COCOeval source):
   - stats[0] = mAP@0.50:0.95, stats[1] = mAP@0.50
 
 Usage:
-    python scripts/evaluate.py
-    python scripts/evaluate.py --quick
+    python -m doclayout.evaluate
+    python -m doclayout.evaluate --quick
 """
 
 from __future__ import annotations
@@ -99,6 +99,65 @@ def compute_iou_matrix(boxes_a: np.ndarray, boxes_b: np.ndarray) -> np.ndarray:
 # ── AP computation (per-class, single IoU threshold) ─────────────────────────
 
 
+def _match_detections(
+    gt_boxes: np.ndarray,
+    dt_boxes: np.ndarray,
+    dt_scores: np.ndarray,
+    iou_threshold: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Label detections TP/FP against ONE image's ground-truth boxes.
+
+    Detections are processed in score-descending order (COCO style). Each
+    detection claims the unmatched GT with the highest IoU ≥ threshold; if
+    that GT is already claimed, the next-best unmatched GT is tried instead
+    of immediately scoring an FP.
+
+    Returns (tp, fp, sorted_scores) — tp/fp are 0/1 arrays aligned with the
+    score-sorted detections.
+    """
+    n_gt = len(gt_boxes)
+    n_dt = len(dt_boxes)
+
+    order = np.argsort(-dt_scores)
+    dt_boxes = dt_boxes[order]
+    dt_scores = dt_scores[order]
+
+    iou_matrix = compute_iou_matrix(dt_boxes, gt_boxes)  # (D, G)
+
+    gt_matched = np.zeros(n_gt, dtype=bool)
+    tp = np.zeros(n_dt, dtype=np.float64)
+    fp = np.zeros(n_dt, dtype=np.float64)
+
+    for d_idx in range(n_dt):
+        ious = iou_matrix[d_idx]
+        # Try GTs from highest IoU down; skip ones already claimed.
+        matched = False
+        for g_idx in np.argsort(-ious):
+            if ious[g_idx] < iou_threshold:
+                break
+            if not gt_matched[g_idx]:
+                tp[d_idx] = 1.0
+                gt_matched[g_idx] = True
+                matched = True
+                break
+        if not matched:
+            fp[d_idx] = 1.0
+
+    return tp, fp, dt_scores
+
+
+def _ap_from_labels(tp: np.ndarray, fp: np.ndarray, scores: np.ndarray, n_gt: int) -> float:
+    """COCO-style 101-point interpolated AP from TP/FP labels + scores."""
+    order = np.argsort(-scores)
+    tp_cum = np.cumsum(tp[order])
+    fp_cum = np.cumsum(fp[order])
+
+    recall = tp_cum / n_gt
+    precision = tp_cum / (tp_cum + fp_cum)
+
+    return _interpolate_ap(precision, recall)
+
+
 def compute_ap_at_iou(
     gt_boxes: np.ndarray,
     dt_boxes: np.ndarray,
@@ -107,7 +166,10 @@ def compute_ap_at_iou(
 ) -> float:
     """Compute Average Precision for a single class at a given IoU threshold.
 
-    Uses the COCO-style 101-point interpolation.
+    Uses the COCO-style 101-point interpolation. Detections are matched
+    greedily by descending score; each claims the unmatched GT with the
+    highest IoU ≥ threshold (falling back to next-best GT when the best is
+    already claimed).
 
     Parameters
     ----------
@@ -128,39 +190,8 @@ def compute_ap_at_iou(
     if n_dt == 0:
         return 0.0
 
-    # Sort detections by score (descending)
-    order = np.argsort(-dt_scores)
-    dt_boxes = dt_boxes[order]
-    dt_scores = dt_scores[order]
-
-    iou_matrix = compute_iou_matrix(dt_boxes, gt_boxes)  # (D, G)
-
-    gt_matched = np.zeros(n_gt, dtype=bool)
-    tp = np.zeros(n_dt, dtype=np.float64)
-    fp = np.zeros(n_dt, dtype=np.float64)
-
-    for d_idx in range(n_dt):
-        ious = iou_matrix[d_idx]
-        # Find best matching GT
-        best_gt = np.argmax(ious)
-        best_iou = ious[best_gt]
-
-        if best_iou >= iou_threshold and not gt_matched[best_gt]:
-            tp[d_idx] = 1.0
-            gt_matched[best_gt] = True
-        else:
-            fp[d_idx] = 1.0
-
-    # Cumulative sums
-    tp_cum = np.cumsum(tp)
-    fp_cum = np.cumsum(fp)
-
-    recall = tp_cum / n_gt
-    precision = tp_cum / (tp_cum + fp_cum)
-
-    # 101-point interpolation (COCO style)
-    ap = _interpolate_ap(precision, recall)
-    return float(ap)
+    tp, fp, scores = _match_detections(gt_boxes, dt_boxes, dt_scores, iou_threshold)
+    return _ap_from_labels(tp, fp, scores, n_gt)
 
 
 def _interpolate_ap(precision: np.ndarray, recall: np.ndarray) -> float:
@@ -223,38 +254,58 @@ def evaluate_map(
     per_class: dict[int, dict] = {}
 
     for cat_id in category_ids:
-        # Gather all GT and DT boxes for this category across all images
-        all_gt_boxes = []
-        all_dt_boxes = []
-        all_dt_scores = []
+        # Match detections to GT strictly WITHIN each image (COCO style):
+        # pooling boxes across images would let detections on one image match
+        # GT on another with overlapping coordinates.
+        img_pools: list[tuple[np.ndarray, np.ndarray, np.ndarray]] = []
+        n_gt = 0
 
         for img_id in all_image_ids:
             key = (img_id, cat_id)
             gt_boxes = gt_by_img_cat.get(key, [])
             dt_entries = dt_by_img_cat.get(key, [])
 
-            all_gt_boxes.extend(gt_boxes)
+            if gt_boxes:
+                gt_arr = np.array(gt_boxes, dtype=np.float64)
+            else:
+                gt_arr = np.zeros((0, 4), dtype=np.float64)
 
-            for bbox, score in dt_entries:
-                all_dt_boxes.append(bbox)
-                all_dt_scores.append(score)
+            if dt_entries:
+                dt_arr = np.array([bbox for bbox, _ in dt_entries], dtype=np.float64)
+                scores_arr = np.array([score for _, score in dt_entries], dtype=np.float64)
+            else:
+                dt_arr = np.zeros((0, 4), dtype=np.float64)
+                scores_arr = np.zeros(0, dtype=np.float64)
 
-        if not all_gt_boxes:
+            if len(gt_arr) == 0 and len(dt_arr) == 0:
+                continue
+            img_pools.append((gt_arr, dt_arr, scores_arr))
+            n_gt += len(gt_arr)
+
+        if n_gt == 0:
             per_class[cat_id] = {"ap_5095": 0.0, "ap_50": 0.0}
             continue
 
-        gt_arr = np.array(all_gt_boxes, dtype=np.float64)
-        if all_dt_boxes:
-            dt_arr = np.array(all_dt_boxes, dtype=np.float64)
-            scores_arr = np.array(all_dt_scores, dtype=np.float64)
-        else:
-            dt_arr = np.zeros((0, 4), dtype=np.float64)
-            scores_arr = np.zeros(0, dtype=np.float64)
-
-        # AP at each IoU threshold
+        # AP at each IoU threshold: match per image, then pool the TP/FP
+        # labels of all images and rank them globally by score (COCO style).
         aps = []
         for iou_t in IOU_THRESHOLDS:
-            ap = compute_ap_at_iou(gt_arr, dt_arr, scores_arr, iou_threshold=iou_t)
+            tp_all, fp_all, score_all = [], [], []
+            for gt_arr, dt_arr, scores_arr in img_pools:
+                if len(dt_arr) == 0:
+                    continue
+                tp, fp, sorted_scores = _match_detections(
+                    gt_arr, dt_arr, scores_arr, iou_threshold=iou_t
+                )
+                tp_all.append(tp)
+                fp_all.append(fp)
+                score_all.append(sorted_scores)
+            if not tp_all:
+                aps.append(0.0)
+                continue
+            ap = _ap_from_labels(
+                np.concatenate(tp_all), np.concatenate(fp_all), np.concatenate(score_all), n_gt
+            )
             aps.append(ap)
 
         ap_5095 = float(np.mean(aps))
@@ -422,7 +473,7 @@ def main() -> None:
     if not dt_path.exists():
         logger.error(
             f"[abort] Detections not found: {dt_path}\n"
-            "  Run `python scripts/detect.py --batch <image_dir>` first, "
+            "  Run `python -m doclayout.detect --batch <image_dir>` first, "
             "or pass --dt <path>."
         )
         sys.exit(1)
@@ -447,6 +498,12 @@ def main() -> None:
         gt_annotations = coco_data["annotations"]
         with open(dt_path, encoding="utf-8") as f:
             detections = json.load(f)
+        # Keep GT and DT on the SAME image_ids (see protocol above): in --quick
+        # mode the GT is a subset, so detections on out-of-subset images would
+        # otherwise be wrongly counted as false positives.
+        gt_image_ids = {img["id"] for img in coco_data.get("images", [])}
+        if gt_image_ids:
+            detections = [d for d in detections if d["image_id"] in gt_image_ids]
         metrics = evaluate_map(gt_annotations, detections)
 
     # Report

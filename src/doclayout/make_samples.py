@@ -6,7 +6,7 @@ synthetic gray-bar placeholders get misclassified since OCR sees no text.
 
 Saved to samples/.
 
-Usage: python scripts/make_samples.py
+Usage: python -m doclayout.make_samples
 """
 
 from __future__ import annotations
@@ -52,17 +52,35 @@ def _find_font(bold: bool) -> str:
             return path
     raise FileNotFoundError(
         f"doclayout: no suitable {kind} font found. "
-        "Install DejaVu/Liberation/Helvetica/Arial fonts, "
-        "or set FONT_REGULAR / FONT_BOLD environment variables."
+        f"Tried: {', '.join(_FONT_CANDIDATES[kind])}. "
+        "Install DejaVu/Liberation/Helvetica/Arial fonts."
     )
 
 
-FONT_REGULAR = _find_font(bold=False)
-FONT_BOLD = _find_font(bold=True)
+_FONT_PATHS: dict[str, str] = {}
+
+
+def _font_path(bold: bool) -> str:
+    """Resolve (and cache) the font path lazily — importing this module must
+    not probe the filesystem (font lookup happens on first use)."""
+    kind = "bold" if bold else "regular"
+    if kind not in _FONT_PATHS:
+        _FONT_PATHS[kind] = _find_font(bold)
+    return _FONT_PATHS[kind]
+
+
+def __getattr__(name: str) -> str:
+    # Lazily-resolved module-level constants, kept for backward compatibility
+    # (existing callers import FONT_REGULAR / FONT_BOLD directly).
+    if name == "FONT_REGULAR":
+        return _font_path(bold=False)
+    if name == "FONT_BOLD":
+        return _font_path(bold=True)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def _font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
-    return ImageFont.truetype(FONT_BOLD if bold else FONT_REGULAR, size)
+    return ImageFont.truetype(_font_path(bold), size)
 
 
 def _wrapped_lines(

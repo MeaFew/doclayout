@@ -7,6 +7,14 @@ name = "doclayout"
 version = "0.1.0"
 description = "Document layout analysis + table recognition with PP-StructureV3, evaluated on PubLayNet mAP."
 requires-python = ">=3.11"
+# Light runtime deps — enough to import every package module and run the
+# test-suite. The heavy engine (paddlepaddle/paddleocr) and app-only deps
+# (streamlit/pandas) stay in requirements.txt; CI deliberately skips those.
+dependencies = [
+    "numpy>=1.24.0,<2.2.0",
+    "Pillow>=10.0.0,<13.0.0",
+    "pycocotools-windows>=2.0.2",
+]
 
 [project.optional-dependencies]
 dev = [

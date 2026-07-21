@@ -7,7 +7,9 @@ drawn in gray so the visualization stays faithful to what the model found.
 
 Output: images/<sample>_layout.png — used by the README and as a dashboard fallback.
 
-Usage: python scripts/visualize.py
+Usage:
+    python -m doclayout.visualize              # annotate all samples
+    python -m doclayout.visualize --quick      # smoke: first sample only
 """
 
 from __future__ import annotations
@@ -37,6 +39,9 @@ UNMAPPED_COLOR = (128, 128, 128)
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Visualize doclayout detections on samples.")
     p.add_argument("--samples-dir", type=str, default=str(SAMPLES_DIR))
+    p.add_argument(
+        "--quick", action="store_true", help="Smoke run: annotate only the first sample."
+    )
     return p.parse_args()
 
 
@@ -75,8 +80,11 @@ def main() -> None:
 
     if not images:
         logger.error(f"[abort] no sample images in {samples_dir}")
-        logger.info("        run `python scripts/make_samples.py` first.")
+        logger.info("        run `python -m doclayout.make_samples` first.")
         sys.exit(1)
+    if args.quick:
+        images = images[:1]
+        logger.info("  quick mode: annotating only the first sample")
 
     logger.info("doclayout - visualize")
     logger.info("=" * 60)

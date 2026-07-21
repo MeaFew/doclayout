@@ -35,6 +35,18 @@ def test_read_readme_metric_map5095(tmp_path):
     assert abs(val - 0.6789) < 1e-4
 
 
+def test_read_readme_metric_unordered(tmp_path):
+    """mAP@0.50 must not capture the 0.95 from a mAP@0.50:0.95 line listed first."""
+    readme = tmp_path / "README.md"
+    readme.write_text("# Results\nmAP@0.50:0.95 = 0.7012\nmAP@0.50 = 0.9234\n", encoding="utf-8")
+    val_50 = read_readme_metric(readme, "mAP@0.50")
+    val_5095 = read_readme_metric(readme, "mAP@0.50:0.95")
+    assert val_50 is not None
+    assert abs(val_50 - 0.9234) < 1e-4
+    assert val_5095 is not None
+    assert abs(val_5095 - 0.7012) < 1e-4
+
+
 def test_check_pass():
     """check() returns True for passing condition."""
     assert check(True, "test pass") is True

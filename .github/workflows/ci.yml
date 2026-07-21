@@ -22,6 +22,8 @@ jobs:
     # paddlepaddle + paddleocr are heavy (~hundreds of MB) and CPU-memory hungry;
     # we do NOT install them in CI. Tests cover config wiring and the region→COCO
     # mapping logic (pure Python) and deliberately never import paddle.
+    # Light runtime deps (numpy / Pillow / pycocotools-windows) come from
+    # pyproject [project].dependencies via the editable install below.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,7 +36,7 @@ jobs:
           key: pip-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
       - run: pip install -e ".[dev]"
       - name: Run tests with coverage
-        run: pytest tests/ -v --tb=short --cov=doclayout --cov-report=term-missing --cov-fail-under=15
+        run: pytest tests/ -v --tb=short --cov=doclayout --cov-report=term-missing --cov-fail-under=60
 
   typecheck:
     # Gradual typing: mypy reports but does not block CI yet.

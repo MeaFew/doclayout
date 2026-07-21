@@ -21,8 +21,9 @@ KEY POINTS:
   - CPU memory env vars set at import time (issue #17955).
 
 Usage:
-    python scripts/detect.py --image path/to/doc.png    # single image → print regions
-    python scripts/detect.py --batch dir/               # batch → detections.json
+    python -m doclayout.detect --image path/to/doc.png    # single image → print regions
+    python -m doclayout.detect --batch dir/               # batch → detections.json
+    python -m doclayout.detect --batch dir/ --quick       # smoke: first image only
 """
 
 from __future__ import annotations
@@ -57,6 +58,9 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Run PP-StructureV3 layout detection.")
     p.add_argument("--image", type=str, help="Single image path → print regions.")
     p.add_argument("--batch", type=str, help="Directory of images → detections.json (COCO format).")
+    p.add_argument(
+        "--quick", action="store_true", help="Batch smoke run: process only the first image."
+    )
     p.add_argument("--device", default=DEFAULT_DEVICE, choices=["cpu", "gpu"])
     return p.parse_args()
 
@@ -260,6 +264,9 @@ def main() -> None:
     if not images:
         logger.error(f"[abort] no images in {img_dir}")
         sys.exit(1)
+    if args.quick:
+        images = images[:1]
+        logger.info("  quick mode: processing only the first image")
     logger.info(f"  batch    : {len(images)} images in {img_dir}")
 
     import json
@@ -280,7 +287,7 @@ def main() -> None:
     config.PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
     DETECTIONS_JSON.write_text(json.dumps(all_dets), encoding="utf-8")
     logger.info(f"\n  wrote {len(all_dets)} detections → {DETECTIONS_JSON.name}")
-    logger.info("OK: batch detection done. Next: `python scripts/evaluate.py`")
+    logger.info("OK: batch detection done. Next: `python -m doclayout.evaluate`")
 
 
 if __name__ == "__main__":

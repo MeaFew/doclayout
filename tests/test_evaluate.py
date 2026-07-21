@@ -5,6 +5,7 @@ ground truth. These tests run without pycocotools or PubLayNet data.
 """
 
 import json
+import sys
 import tempfile
 from pathlib import Path
 
@@ -149,6 +150,19 @@ class TestComputeAP:
         ap_95 = compute_ap_at_iou(gt, dt, scores, iou_threshold=0.95)
         assert ap_50 >= ap_95
 
+    def test_second_best_gt_retry(self):
+        """Best GT already claimed → detection must try the next-best GT.
+
+        Two identical detections over two heavily overlapping GTs: the first
+        claims GT0, the second must match GT1 (IoU ≈ 0.82 ≥ 0.5) instead of
+        being scored FP.
+        """
+        gt = np.array([[10, 10, 20, 20], [11, 11, 20, 20]], dtype=np.float64)
+        dt = np.array([[10, 10, 20, 20], [10, 10, 20, 20]], dtype=np.float64)
+        scores = np.array([0.9, 0.8], dtype=np.float64)
+        ap = compute_ap_at_iou(gt, dt, scores, iou_threshold=0.5)
+        assert abs(ap - 1.0) < 1e-6
+
 
 # ── Interpolation tests ──────────────────────────────────────────────────────
 
@@ -258,6 +272,30 @@ class TestEvaluateMAP:
         result = evaluate_map(gt, dt, category_ids=[1])
         assert abs(result["map_50"] - 1.0) < 1e-6
 
+    def test_no_cross_image_matching(self):
+        """Regression: a detection must never match GT from another image.
+
+        Same coordinates on different images: with cross-image pooling this
+        would score a perfect TP; correct behavior is FP (image 2 has no GT)
+        plus a missed GT on image 1 → mAP = 0.
+        """
+        gt = [self._make_gt(1, 1, [10, 10, 20, 20])]
+        dt = [self._make_dt(2, 1, [10, 10, 20, 20], 0.9)]
+        result = evaluate_map(gt, dt, category_ids=[1])
+        assert result["map_50"] == 0.0
+        assert result["map_5095"] == 0.0
+
+    def test_cross_image_fp_does_not_consume_gt(self):
+        """Regression: FPs on other images must not consume this image's GT."""
+        gt = [self._make_gt(1, 1, [10, 10, 20, 20])]
+        dt = [
+            self._make_dt(2, 1, [10, 10, 20, 20], 0.95),  # wrong image → FP
+            self._make_dt(1, 1, [10, 10, 20, 20], 0.90),  # correct image → TP
+        ]
+        result = evaluate_map(gt, dt, category_ids=[1])
+        # Recall reaches 1.0 via the second detection; mAP > 0 but < 1 (FP first).
+        assert 0.0 < result["map_50"] < 1.0
+
     def test_empty_gt_and_dt(self):
         """Both empty → mAP = 0."""
         result = evaluate_map([], [], category_ids=[1])
@@ -266,6 +304,58 @@ class TestEvaluateMAP:
 
 
 # ── pycocotools integration tests ────────────────────────────────────────────
+
+
+class TestSubsetFiltering:
+    """main() must filter detections to the GT image set (docstring protocol)."""
+
+    def test_detections_outside_gt_images_not_counted(self, tmp_path, monkeypatch):
+        """Detections on out-of-subset images must not count as false positives.
+
+        GT covers image 1 only; the detections file also has a perfect-box
+        detection on image 2. Without filtering, that detection would match
+        image 1's GT (same coordinates) and inflate mAP.
+        """
+        from doclayout import evaluate as ev
+
+        gt_data = {
+            "images": [{"id": 1, "width": 100, "height": 100}],
+            "annotations": [
+                {
+                    "id": 1,
+                    "image_id": 1,
+                    "category_id": 1,
+                    "bbox": [10, 10, 20, 20],
+                    "area": 400,
+                    "iscrowd": 0,
+                }
+            ],
+            "categories": [{"id": 1, "name": "text"}],
+        }
+        dt_data = [
+            {"image_id": 2, "category_id": 1, "bbox": [10, 10, 20, 20], "score": 0.99},
+            {"image_id": 1, "category_id": 1, "bbox": [50, 50, 10, 10], "score": 0.5},
+        ]
+        gt_path = tmp_path / "gt.json"
+        dt_path = tmp_path / "dt.json"
+        gt_path.write_text(json.dumps(gt_data), encoding="utf-8")
+        dt_path.write_text(json.dumps(dt_data), encoding="utf-8")
+
+        metrics_out = tmp_path / "metrics.json"
+        monkeypatch.setattr(ev, "METRICS_JSON", metrics_out)
+        monkeypatch.setattr(ev, "PER_CLASS_CSV", tmp_path / "per_class.csv")
+
+        def _raise_import_error(*args, **kwargs):
+            raise ImportError("forced numpy fallback")
+
+        monkeypatch.setattr(ev, "evaluate_with_pycocotools", _raise_import_error)
+        monkeypatch.setattr(sys, "argv", ["evaluate", "--gt", str(gt_path), "--dt", str(dt_path)])
+
+        ev.main()
+
+        data = json.loads(metrics_out.read_text(encoding="utf-8"))
+        assert data["map_50"] == 0.0
+        assert data["map_5095"] == 0.0
 
 
 class TestPycocotoolsEval:

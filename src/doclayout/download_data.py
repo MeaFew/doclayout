@@ -11,8 +11,8 @@ PubLayNet's original IBM hosting is unreliable; we try sources in order:
 In --quick mode only the val.json + a 500-image subset is kept.
 
 Usage:
-    python scripts/download_data.py
-    python scripts/download_data.py --quick
+    python -m doclayout.download_data
+    python -m doclayout.download_data --quick
 """
 
 from __future__ import annotations

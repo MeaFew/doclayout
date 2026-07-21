@@ -30,6 +30,9 @@ from PIL import Image, ImageDraw
 import doclayout.config as config
 from doclayout import detect
 from doclayout.config import METRICS_JSON, SAMPLES_DIR, apply_paddle_env
+from doclayout.logging_setup import get_logger
+
+logger = get_logger(__name__)
 
 # CPU memory guard + oneDNN disable — before any paddle import downstream.
 # Single source of truth: config.apply_paddle_env() honors config.ENABLE_MKLDNN.
@@ -65,7 +68,8 @@ def _render_table_html(table_html: str) -> None:
     """Render table HTML safely: native dataframe if parsable, else escaped code."""
     try:
         dfs = pd.read_html(table_html)
-    except Exception:
+    except Exception as exc:  # read_html raises on any parse hiccup
+        logger.warning("pandas.read_html failed; falling back to escaped HTML: %s", exc)
         dfs = []
     if dfs:
         st.dataframe(dfs[0], use_container_width=True)
@@ -162,5 +166,5 @@ with tab_metrics:
         st.info("No metrics yet. mAP evaluation requires PubLayNet val data.")
         st.caption(
             "PubLayNet val data download is pending (network-dependent). "
-            "Once available, run `python scripts/evaluate.py`."
+            "Once available, run `python -m doclayout.evaluate`."
         )

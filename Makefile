@@ -28,7 +28,9 @@ dashboard:
 # ── Setup ────────────────────────────────────────────────────────
 # Note: requirements.txt contains platform-specific deps (paddlepaddle,
 # pycocotools-windows). No cross-platform lock file is generated for this
-# reason. CI installs only dev deps (tests are pure Python, no paddle).
+# reason. Light runtime deps (numpy/Pillow/pycocotools-windows) are declared
+# in pyproject [project].dependencies, so `pip install -e ".[dev]"` alone
+# is enough to run the tests — CI installs exactly that (no paddle).
 setup:
 	pip install -r requirements.txt
 	pip install -e ".[dev]"
@@ -45,7 +47,7 @@ format-check:
 	ruff format --check src/ tests/ dashboard/
 
 test:
-	pytest tests/ -v --tb=short --cov=doclayout --cov-report=term-missing --cov-fail-under=15
+	pytest tests/ -v --tb=short --cov=doclayout --cov-report=term-missing --cov-fail-under=60
 
 typecheck:
 	mypy src/doclayout
