@@ -1,10 +1,10 @@
+**English** | [中文](README.zh-CN.md)
+
 <div align="center">
 
-# doclayout · 文档智能版面分析
+# doclayout · Document Intelligence
 
-**基于 PP-StructureV3 的文档版面分割 + 表格识别 — 上传文档图像，自动分割结构区域**
-
-[English](./README.en.md) | 中文
+**Document layout segmentation + table recognition with PP-StructureV3**
 
 <img src="https://img.shields.io/badge/python-3.11%2B-blue?logo=python&logoColor=white" alt="Python">
 <img src="https://img.shields.io/badge/PaddleOCR-3.7-2855d6" alt="PaddleOCR">
@@ -15,170 +15,170 @@
 
 <div align="center">
 
-<img src="./images/sample_paper_layout.png" alt="版面分割效果（学术论文样本文档）" width="720">
+<img src="./images/sample_paper_layout.png" alt="Layout segmentation on a sample paper document" width="720">
 
-版面分割实测：PP-StructureV3 区分 `doc_title` / `paragraph_title` / `figure_title` / `text` / `table` 等细粒度区域类型，并对表格区域还原为 HTML 结构
+In practice, PP-StructureV3 distinguishes fine-grained region types — `doc_title` / `paragraph_title` / `figure_title` / `text` / `table` — and recovers table regions as HTML
 
 </div>
 
-## 核心结论
+## Headline
 
-> **PP-StructureV3 一个 pipeline 同时输出区域分割与表格 HTML 结构，且能区分 `doc_title`/`paragraph_title`/`figure_title`/`chart`/`header` 等细粒度类型——比 PubLayNet 的 5 类更丰富。**
+> **PP-StructureV3 emits both region segmentation and table HTML from a single pipeline, and distinguishes fine-grained types (`doc_title`/`paragraph_title`/`figure_title`/`chart`/`header`) that are richer than PubLayNet's 5 classes.**
 >
-> 量化指标（mAP）依赖 PubLayNet val 数据，**评估代码已实现、待数据到位后回填数字**（见下文"评估状态"）。在此之前，本 README 不报任何具体数字，避免误导。
+> Quantitative metrics (mAP) depend on PubLayNet val data: **the evaluation code is implemented, and numbers will be filled in once data is available** (see "Evaluation Status" below). Until then, this README reports no concrete numbers, to avoid misleading readers.
 
-| 维度 | 状态 |
-|------|------|
-| 版面分割 | ✅ 实测可用，区分细粒度区域类型（定性） |
-| 表格识别 | ✅ 实测可用，还原为 HTML 结构（定性） |
-| mAP 量化 | ⏳ 代码已实现（pycocotools 优先、内置 numpy 回退），待 PubLayNet val 数据 |
+| Dimension | Status |
+|-----------|--------|
+| Layout segmentation | ✅ Works in practice, fine-grained region types (qualitative) |
+| Table recognition | ✅ Works in practice, recovered as HTML (qualitative) |
+| mAP quantification | ⏳ Code implemented (pycocotools preferred, built-in numpy fallback); pending PubLayNet val data |
 
 ---
 
-## 项目简介
+## Overview
 
-`doclayout` 是一个文档智能系统，对文档图像进行版面分析：自动识别标题、正文、表格、图片、列表等结构区域，并对表格区域进行结构识别（还原为 HTML）。底层使用 **PaddleOCR PP-StructureV3**（2025 最新版），一个 pipeline 同时完成版面分割 + 表格结构识别。
+`doclayout` analyzes document images: it automatically identifies structural regions (titles, body text, tables, figures, lists) and recognizes table structure (as HTML). Powered by **PaddleOCR PP-StructureV3** (2025), a single pipeline handles both layout segmentation and table structure recognition.
 
-这是一个**文档智能方向**的项目，聚焦版面分割与表格结构识别。
+This is a **document-intelligence** project focused on layout segmentation and table-structure recognition.
 
-## 核心亮点
+## Highlights
 
-- **一体化版面 + 表格引擎**：PP-StructureV3 一个 pipeline 同时输出区域分割（text/title/table/figure/...）和表格 HTML 结构，无需拼接多个模型。
-- **丰富的区域类型**：实测 PP-StructureV3 3.7 能区分 `doc_title`/`paragraph_title`/`figure_title`/`chart`/`header` 等细粒度类型，比 PubLayNet 的 5 类更丰富。
-- **交互式可视化看板**：Streamlit 上传任意文档图像 → 实时推理 → 彩色标注框 + 表格 HTML 渲染。
-- **工程化扎实**：CI（lint + test）、双入口（Makefile + run_all.py）、`--quick` 模式、类别映射 + bbox 格式转换适配层。
-- **实测解决的工程坑**：paddlepaddle 3.3 的 oneDNN PIR bug（自动禁用）、CPU 内存回归（环境变量限制）、PP-StructureV3 版本敏感的 schema 差异（探测适配）。
+- **Unified layout + table engine**: PP-StructureV3 outputs both region segmentation and table HTML in one pipeline — no model stitching.
+- **Fine-grained region types**: PP-StructureV3 3.7 distinguishes `doc_title`/`paragraph_title`/`figure_title`/`chart`/`header` — richer than PubLayNet's 5 classes.
+- **Interactive dashboard**: Streamlit — upload any document image → live inference → colored boxes + table HTML.
+- **Production engineering**: CI (lint + test), dual entry points (Makefile + run_all.py), `--quick` mode, category-mapping + bbox-conversion adapter.
+- **Real engineering pitfalls solved**: paddlepaddle 3.3 oneDNN PIR bug (auto-disabled), CPU memory regression (env-limited), PP-StructureV3 version-sensitive schema (probed + adapted).
 
-## 技术架构
+## Architecture
 
 ```
-文档图像
+Document image
     │
     ▼
 PP-StructureV3 (PaddleOCR 3.7)
-    │  ├── 版面检测 (PP-DocLayout_plus-L)
-    │  ├── 表格结构识别 (SLANeXt + SLANet_plus)
-    │  └── 文字 OCR (PP-OCRv5)
+    │  ├── Layout detection (PP-DocLayout_plus-L)
+    │  ├── Table structure recognition (SLANeXt + SLANet_plus)
+    │  └── Text OCR (PP-OCRv5)
     │
     ▼
-detect.py 适配层
-    │  ├── schema 探测：res.parsing_res_list (实测, 非 API 文档描述)
-    │  ├── 类别映射：PP label → PubLayNet 5 类
-    │  └── bbox 转换：[x1,y1,x2,y2] → [x,y,w,h]
+detect.py adapter layer
+    │  ├── schema probe: res.parsing_res_list (observed, not the API-doc form)
+    │  ├── category mapping: PP label → PubLayNet 5 classes
+    │  └── bbox conversion: [x1,y1,x2,y2] → [x,y,w,h]
     │
     ▼
-可视化 / 看板
-    ├── PIL 彩色标注框 (每类一色)
-    └── 表格 HTML 渲染
+Visualization / dashboard
+    ├── PIL colored boxes (one color per class)
+    └── table HTML rendering
 ```
 
-## 快速开始
+## Quick Start
 
 ```bash
-# 1. 创建并激活 Python 3.11 虚拟环境
+# 1. Create and activate a Python 3.11 virtual environment
 python -m venv .venv
 # Linux / macOS: source .venv/bin/activate
 # Windows PowerShell: .venv\Scripts\Activate.ps1
 
-# 2. 安装（CPU；包含 PaddleOCR 与本项目包）
+# 2. Install (CPU; includes PaddleOCR and this package)
 make setup
-# Windows 无 GNU Make：python -m pip install -r requirements.txt
-#                    python -m pip install -e ".[dev]"
+# Windows without GNU Make: python -m pip install -r requirements.txt
+#                           python -m pip install -e ".[dev]"
 
-# 3. 生成样本文档 + 推理 + 可视化
+# 3. Generate sample documents + inference + visualization
 make all              # samples → detect → visualize
 
-# 4. 启动交互式看板（上传任意文档图像）
+# 4. Launch the interactive dashboard (upload any document image)
 make dashboard
 
-# 5. 单图推理
+# 5. Single-image inference
 python -m doclayout.detect --image samples/sample_paper.png
 ```
 
-## 检测能力（实测）
+## Detection Capability (observed)
 
-PP-StructureV3 在三种合成文档上的实测区域识别（真实渲染文字，非灰色占位条）：
+Region types detected by PP-StructureV3 on three synthetic documents (real rendered text, not gray placeholder bars):
 
-| 样本 | 检测到的区域类型 |
-|------|------------------|
-| 学术论文 | `doc_title`, `paragraph_title`, `figure_title`, `text` ×4, `table` |
-| 商业报告 | `chart`, `figure_title`, `paragraph_title`, `table`, `text` |
-| 发票 | `header`, `table`, `text` |
+| Sample | Detected region types |
+|--------|-----------------------|
+| Academic paper | `doc_title`, `paragraph_title`, `figure_title`, `text` ×4, `table` |
+| Business report | `chart`, `figure_title`, `paragraph_title`, `table`, `text` |
+| Invoice | `header`, `table`, `text` |
 
 <div align="center">
 
-<img src="./images/sample_invoice_layout.png" alt="发票样本文档版面分割" width="420">
+<img src="./images/sample_invoice_layout.png" alt="Layout segmentation on a sample invoice document" width="420">
 
 </div>
 
-> 样本文档由 `src/doclayout/make_samples.py` 用系统字体渲染生成（含真实文字，使 OCR 能识别 text 区域）。
+> Sample documents are generated by `src/doclayout/make_samples.py` using system fonts (real text so OCR can recognize `text` regions).
 
-## 评估状态（缺数据，诚实说明）
+## Evaluation Status (data pending — stated honestly)
 
-mAP 量化评估需要 PubLayNet val 数据（11K 图，COCO format）。该数据集的获取当前受网络限制（IBM DAX 链接不可靠，HF 镜像为 parquet 格式且连接不稳定），需手动获取后放到 `data/raw/publaynet_val.json`（`download_data.py` 仍是占位实现，会自动失败并提示手动获取）。
+mAP quantification requires PubLayNet val data (11K images, COCO format). Acquisition is currently network-limited (IBM DAX unreliable, HF mirrors are parquet + unstable), so the data must be obtained manually and placed at `data/raw/publaynet_val.json` (`download_data.py` is still a stub that fails with manual-setup instructions).
 
-- **`evaluate.py` 已实现**：优先使用 pycocotools COCOeval，未安装时回退到内置纯 numpy 评估器（按 image_id 分组匹配、COCO 101 点插值）；数据未就位时会以清晰的"data not found"提示退出。
-- **数据就位后**：运行 `python -m doclayout.evaluate --quick`（500 图子集）产出 mAP，并回填本 README 与 `reports/metrics.json`；因此该命令暂不列入可运行快速开始。
-- **在此之前，本 README 不报 mAP 数字**：上方"核心结论"与表格均以定性陈述代替，避免出现未经实测的数字。
+- **`evaluate.py` is implemented**: it prefers pycocotools COCOeval and falls back to a built-in pure-numpy evaluator (per-image matching, COCO 101-point interpolation); until the data is in place it exits with a clear "data not found" message.
+- **Once data is available**: run `python -m doclayout.evaluate --quick` (500-image subset) to generate mAP and update this README plus `reports/metrics.json`. The command is therefore deliberately excluded from Quick Start for now.
+- **Until then, this README reports no mAP number**: the headline and table above use qualitative statements instead, to avoid presenting unverified figures.
 
-## 关键设计决策
+## Key Design Decisions
 
-### 为什么选 PP-StructureV3 而非 LayoutLMv3 / DETR / YOLO？
+### Why PP-StructureV3 instead of LayoutLMv3 / DETR / YOLO?
 
-- **LayoutLMv3 不支持检测**：HF transformers 里的 LayoutLMv3 只有分类/NER head，不能输出 bbox（微软官方确认）。
-- **通用 DETR 无文档类别**：`facebook/detr-resnet-50` 是 COCO 80 类，不含文档版面类别。
-- **PP-StructureV3 开箱即用**：一个 pipeline 同时做版面 + 表格结构 + OCR，CPU 可跑，2025 年活跃维护。
+- **LayoutLMv3 can't detect**: HF transformers' LayoutLMv3 only has classification/NER heads, no bbox output (confirmed by Microsoft).
+- **Generic DETR lacks doc classes**: `facebook/detr-resnet-50` is COCO 80-class, no document layout categories.
+- **PP-StructureV3 is turnkey**: one pipeline for layout + table + OCR, CPU-runnable, actively maintained in 2025.
 
 ### paddlepaddle 3.3 oneDNN bug
 
-paddlepaddle 3.3.1 在 Windows CPU 上用 oneDNN 时，新 PIR 执行器会崩（`ConvertPirAttribute2RuntimeAttribute not support`）。解法：`enable_mkldnn=False`（速度损失但稳定）。见 `config.ENABLE_MKLDNN`。
+paddlepaddle 3.3.1 crashes on Windows CPU with oneDNN under the new PIR executor (`ConvertPirAttribute2RuntimeAttribute not support`). Fix: `enable_mkldnn=False` (slower but stable). See `config.ENABLE_MKLDNN`.
 
-### PP-StructureV3 schema 适配
+### PP-StructureV3 schema adaptation
 
-API 文档描述的结果结构是 `parsing_res_list` 在顶层，但实测（paddleocr 3.7）实际在 `page.json["res"]["parsing_res_list"]`，且字段名是 `block_label`/`block_bbox`（非文档说的 `layout_type`/`layout_bbox`）。`detect.py` 用 `res.` 嵌套 + 双字段名 fallback 适配，不硬编码。
+The API docs describe `parsing_res_list` at the top level, but in practice (paddleocr 3.7) it lives at `page.json["res"]["parsing_res_list"]`, with field names `block_label`/`block_bbox` (not the documented `layout_type`/`layout_bbox`). `detect.py` adapts via nested `res.` access + a dual-field-name fallback — no hardcoding.
 
 <details>
-<summary><b>技术栈 / 项目结构 / 质量保障</b></summary>
+<summary><b>Tech stack / project structure / quality assurance</b></summary>
 
-#### 技术栈
+#### Tech Stack
 
-| 层级 | 工具 | 说明 |
-|------|------|------|
-| 引擎 | PP-StructureV3 (`paddleocr` 3.7) | 版面分割 + 表格结构一体化 |
-| 后端 | paddlepaddle 3.3 (CPU) | 禁用 oneDNN 规避 PIR bug |
-| 图像 | Pillow | 标注框绘制 + 样本生成 |
-| 评估 | pycocotools + PubLayNet | mAP@[0.50:0.95]（代码已实现，待数据；见"评估状态"） |
-| 交付 | Streamlit | 交互式文档分析看板 |
+| Layer | Tool | Notes |
+|-------|------|-------|
+| Engine | PP-StructureV3 (`paddleocr` 3.7) | unified layout + table structure |
+| Backend | paddlepaddle 3.3 (CPU) | oneDNN disabled to dodge the PIR bug |
+| Image | Pillow | bbox drawing + sample generation |
+| Eval | pycocotools + PubLayNet | mAP@[0.50:0.95] (implemented, pending data; see "Evaluation Status") |
+| UI | Streamlit | interactive document analysis |
 
-#### 项目结构
+#### Project Structure
 
 ```
 doclayout/
 ├── src/doclayout/
-│   ├── config.py             # 路径 + 类别映射 + ENABLE_MKLDNN + CPU 内存限制
-│   ├── make_samples.py       # 生成含真实文字的样本文档（系统字体渲染）
-│   ├── detect.py             # PP-StructureV3 推理 + schema 适配 + COCO 输出
-│   ├── evaluate.py           # pycocotools mAP + numpy 回退（已实现：待 PubLayNet val 数据）
-│   ├── download_data.py      # PubLayNet 数据下载（占位：网络源不稳定）
-│   ├── visualize.py          # PIL 彩色标注框可视化
-│   └── audit_consistency.py  # README mAP 校验
-├── dashboard/app.py          # Streamlit 交互式文档分析
-├── samples/                  # 合成样本文档（论文/报告/发票）
-├── tests/                    # config + 类别映射测试
+│   ├── config.py             # paths + category mapping + ENABLE_MKLDNN + CPU memory limit
+│   ├── make_samples.py       # render sample documents with real text (system fonts)
+│   ├── detect.py             # PP-StructureV3 inference + schema adapter + COCO output
+│   ├── evaluate.py           # pycocotools mAP + numpy fallback (implemented; data pending)
+│   ├── download_data.py      # PubLayNet download (placeholder: source unstable)
+│   ├── visualize.py          # PIL colored-box visualization
+│   └── audit_consistency.py  # README mAP audit
+├── dashboard/app.py          # Streamlit interactive document analysis
+├── samples/                  # synthetic documents (paper / report / invoice)
+├── tests/                    # config + detect/evaluate + visualize tests (no paddle import)
 ├── run_all.py / Makefile
-└── README.md / CONTRIBUTING.md / LICENSE
+└── README.md / README.zh-CN.md / CONTRIBUTING.md / LICENSE
 ```
 
-#### 质量保障
+#### Quality Assurance
 
-| 层级 | 触发 | 命令 | 作用 |
-|------|------|------|------|
-| L1 | 每次 commit | pre-commit (ruff) | 格式、基础 lint |
-| L2 | 每次 push/PR | GitHub Actions CI | lint + test（不装 paddle） |
-| L3 | 手动 | `make verify` | lint + format-check + test + audit |
+| Level | Trigger | Command | Purpose |
+|-------|---------|---------|---------|
+| L1 | each commit | pre-commit (ruff) | format, basic lint |
+| L2 | each push/PR | GitHub Actions CI | lint + test (no paddle installed) |
+| L3 | manual | `make verify` | lint + format-check + typecheck + test + audit |
 
 </details>
 
-## 许可证
+## License
 
 MIT
